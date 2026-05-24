@@ -832,7 +832,6 @@ class Momentarium {
     this.turbulence   = 0;
     this.fade         = 0;
     this.fadeDir      = 0;
-    this.changeTimer  = -1;
     this.t            = 0;
     this.lastTs       = 0;
     this.lastShakeMs  = 0;
@@ -878,16 +877,47 @@ class Momentarium {
   }
 
   bindInput() {
+    let ptrStartX = 0, ptrStartY = 0, didSwipe = false;
+
+    this.canvas.addEventListener('pointerdown', (e) => {
+      ptrStartX = e.clientX;
+      ptrStartY = e.clientY;
+      didSwipe  = false;
+    });
+
+    this.canvas.addEventListener('pointermove', (e) => {
+      if (Math.abs(e.clientX - ptrStartX) > 10) didSwipe = true;
+    });
+
     this.canvas.addEventListener('pointerup', (e) => {
       e.preventDefault();
-      this.onShake();
+      const dx = e.clientX - ptrStartX;
+      const dy = e.clientY - ptrStartY;
+
+      if (Math.abs(dx) > 42 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+        // Horizontal swipe — change scene
+        this.changeScene(this.sceneIdx + (dx < 0 ? 1 : -1));
+      } else if (!didSwipe) {
+        // Tap — check dots first, otherwise turbulence
+        const dot = this.getDotAt(e.clientX, e.clientY);
+        if (dot >= 0) {
+          this.changeScene(dot);
+        } else {
+          this.onTap();
+        }
+      }
+
+      if (this.hintShown) {
+        this.hintShown = false;
+        this.hint.classList.add('fade');
+      }
     });
 
     let prevMag = 0;
     window.addEventListener('devicemotion', (e) => {
       const a = e.accelerationIncludingGravity;
       if (!a || a.x == null) return;
-      const mag = Math.sqrt(a.x ** 2 + a.y ** 2 + a.z ** 2);
+      const mag   = Math.sqrt(a.x ** 2 + a.y ** 2 + a.z ** 2);
       const delta = Math.abs(mag - prevMag);
       prevMag = mag;
       if (delta > CFG.shakeThreshold) {
@@ -901,7 +931,7 @@ class Momentarium {
 
     if (typeof DeviceMotionEvent !== 'undefined' &&
         typeof DeviceMotionEvent.requestPermission === 'function') {
-      this.canvas.addEventListener('pointerup', () => {
+      this.canvas.addEventListener('pointerdown', () => {
         DeviceMotionEvent.requestPermission().catch(() => {});
       }, { once: true });
     }
@@ -912,17 +942,41 @@ class Momentarium {
     });
   }
 
+  // Turbulence only — no scene change
   onShake() {
-    this.turbulence = 1.8;
+    this.turbulence = 2.0;
     this.particles.forEach(p => p.kick());
-    if (this.fadeDir === 0 && this.changeTimer < 0) {
-      this.nextSceneIdx = (this.sceneIdx + 1) % SCENES.length;
-      this.changeTimer  = CFG.shakeDelay;
+  }
+
+  // Tap on scene area — light turbulence
+  onTap() {
+    this.turbulence = 1.4;
+    this.particles.forEach(p => p.kick());
+  }
+
+  // Deliberate scene jump — swipe or dot tap
+  changeScene(idx) {
+    if (this.fadeDir !== 0 || this.changeTimer >= 0) return;
+    const n = ((idx % SCENES.length) + SCENES.length) % SCENES.length;
+    if (n === this.sceneIdx) return;
+    this.nextSceneIdx = n;
+    this.fadeDir      = 1; // start fading immediately
+    this.turbulence   = 1.0;
+    this.particles.forEach(p => p.kick());
+  }
+
+  // Return scene index for the dot under (x, y), or -1
+  getDotAt(x, y) {
+    const { W, H, safeBot } = this;
+    const dotY   = H - safeBot - H * 0.034;
+    const spacing = Math.min(24, W / (SCENES.length + 2));
+    const startX  = W / 2 - (SCENES.length - 1) * spacing / 2;
+    for (let i = 0; i < SCENES.length; i++) {
+      const ddx = x - (startX + i * spacing);
+      const ddy = y - dotY;
+      if (ddx * ddx + ddy * ddy < 22 * 22) return i;
     }
-    if (this.hintShown) {
-      this.hintShown = false;
-      this.hint.classList.add('fade');
-    }
+    return -1;
   }
 
   update(dt) {
@@ -930,18 +984,12 @@ class Momentarium {
     this.turbulence = Math.max(0, this.turbulence * Math.pow(CFG.turbulenceDecay, dt / 16));
     this.particles.forEach(p => p.update(this.turbulence, dt));
 
-    if (this.changeTimer >= 0) {
-      this.changeTimer -= dt;
-      if (this.changeTimer < 0 && this.fadeDir === 0) this.fadeDir = 1;
-    }
-
     const spd = CFG.transitionSpeed * (dt / 16);
     if (this.fadeDir === 1) {
       this.fade = Math.min(1, this.fade + spd);
       if (this.fade >= 1) {
-        this.sceneIdx   = this.nextSceneIdx;
-        this.fadeDir    = -1;
-        this.changeTimer = -1;
+        this.sceneIdx = this.nextSceneIdx;
+        this.fadeDir  = -1;
         this.buildParticles(true);
       }
     } else if (this.fadeDir === -1) {
