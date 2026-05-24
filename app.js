@@ -246,41 +246,58 @@ const SCENES = [
       sky.addColorStop(1, '#1c2d42');
       ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
 
-      // Aurora Borealis — three slow undulating curtains
+      // Aurora Borealis — unified vertical-strip curtain.
+      // Each strip owns its top/bottom (computed from the curtain wave) and its own
+      // vertical gradient carrying the full aurora colour spectrum. Column brightness
+      // is modulated per-strip by a sine field, so ray texture and curtain shape are
+      // one unified pass — no separate streak layer to fight the boundary.
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
-      const aBase = 0.72 + 0.28 * Math.sin(t * 0.34);
-      const auroraBand = (baseY, bw, hue, phase, sp) => {
-        const steps = 64;
-        const ag = ctx.createLinearGradient(0, baseY - bw, 0, baseY + bw);
-        ag.addColorStop(0,   `hsla(${hue},88%,52%,0)`);
-        ag.addColorStop(0.28,`hsla(${hue},88%,52%,${0.22 * aBase})`);
-        ag.addColorStop(0.5, `hsla(${hue},90%,66%,${0.34 * aBase})`);
-        ag.addColorStop(0.72,`hsla(${hue},88%,52%,${0.22 * aBase})`);
-        ag.addColorStop(1,   `hsla(${hue},88%,52%,0)`);
-        ctx.fillStyle = ag;
-        ctx.beginPath();
-        for (let i = 0; i <= steps; i++) {
-          const p = i / steps;
-          const x = p * W;
-          const y = baseY - bw
-            + Math.sin(p * Math.PI * 2.7 + t * sp + phase)       * bw * 0.72
-            + Math.sin(p * Math.PI * 5.2 + t * sp * 1.7 + phase) * bw * 0.22;
-          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-        }
-        for (let i = steps; i >= 0; i--) {
-          const p = i / steps;
-          const x = p * W;
-          const y = baseY + bw
-            + Math.sin(p * Math.PI * 2.7 + t * sp + phase + 0.7) * bw * 0.72
-            + Math.sin(p * Math.PI * 5.2 + t * sp * 1.7 + phase) * bw * 0.22;
-          ctx.lineTo(x, y);
-        }
-        ctx.closePath(); ctx.fill();
-      };
-      auroraBand(H * 0.14, H * 0.056, 148, 0.0, 0.27);
-      auroraBand(H * 0.21, H * 0.044, 168, 2.2, 0.21);
-      auroraBand(H * 0.09, H * 0.068, 140, 4.6, 0.17);
+
+      const aBase   = 0.68 + 0.32 * Math.sin(t * 0.34);
+      const nStrips = Math.max(60, Math.floor(W / 5));
+      const stripW  = W / nStrips;
+
+      // Blur each strip before compositing so adjacent strips blend at their edges,
+      // dissolving the rectangle grid into smooth glowing columns.
+      ctx.filter = 'blur(6px)';
+      for (let i = 0; i < nStrips; i++) {
+        const x = i * stripW;
+        const p = (i + 0.5) / nStrips;          // 0..1 across screen width
+
+        // Curtain top edge — two sine waves for organic undulation
+        const topY = H * 0.04
+          + Math.sin(p * Math.PI * 3.1 + t * 0.22       ) * H * 0.048
+          + Math.sin(p * Math.PI * 6.7 + t * 0.31 + 1.2 ) * H * 0.018;
+
+        // Curtain bottom edge — independent wave so top/bottom move differently
+        const botY = H * 0.36
+          + Math.sin(p * Math.PI * 2.8 + t * 0.18 + 0.8 ) * H * 0.042
+          + Math.sin(p * Math.PI * 5.4 + t * 0.26 + 2.0 ) * H * 0.016;
+
+        // Column brightness: fast sine creates ~5 ray cycles across the screen;
+        // slow sine modulates the large-scale brightness envelope.
+        const col = (0.18 + 0.82 * Math.abs(Math.sin(p * Math.PI * 10.5 + t * 0.14 + 0.3)))
+                  * (0.55 + 0.45 * Math.sin(p * Math.PI * 3.8  + t * 0.09));
+        const a   = col * aBase;
+
+        // Single vertical gradient per strip — full aurora colour spectrum:
+        // pink fringe → upper green → bright green core → lower green → blue-violet base
+        const grad = ctx.createLinearGradient(x, topY, x, botY);
+        grad.addColorStop(0.00, `hsla(330, 85%, 70%, 0)`);
+        grad.addColorStop(0.06, `hsla(330, 82%, 68%, ${a * 0.22})`);
+        grad.addColorStop(0.20, `hsla(145, 90%, 62%, ${a * 0.62})`);
+        grad.addColorStop(0.46, `hsla(148, 96%, 72%, ${a * 1.00})`);
+        grad.addColorStop(0.68, `hsla(156, 88%, 58%, ${a * 0.64})`);
+        grad.addColorStop(0.80, `hsla(200, 84%, 60%, ${a * 0.48})`);
+        grad.addColorStop(0.90, `hsla(255, 82%, 62%, ${a * 0.38})`);
+        grad.addColorStop(0.97, `hsla(280, 78%, 58%, ${a * 0.24})`);
+        grad.addColorStop(1.00, `hsla(290, 74%, 55%, 0)`);
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, topY, stripW + 1, botY - topY);
+      }
+      ctx.filter = 'none';
       ctx.restore();
 
       drawStarField(ctx, W, H, 40, t);
