@@ -137,18 +137,18 @@ class Particle {
     }
   }
 
-  draw(ctx, t) {
+  draw(ctx, t, ga = 1) {
     ctx.save();
     switch (this.type) {
       case 'snow': {
         const tw = 0.82 + 0.18 * Math.sin(t * 2.3 + this.ph);
-        ctx.globalAlpha = this.a * tw;
+        ctx.globalAlpha = this.a * tw * ga;
         ctx.fillStyle = '#fff';
         ctx.beginPath(); ctx.arc(this.x, this.y, this.sz, 0, TAU); ctx.fill();
         break;
       }
       case 'bubble': {
-        ctx.globalAlpha = this.a;
+        ctx.globalAlpha = this.a * ga;
         ctx.strokeStyle = 'rgba(140,220,255,0.75)';
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.arc(this.x, this.y, this.sz, 0, TAU); ctx.stroke();
@@ -160,7 +160,7 @@ class Particle {
       }
       case 'ember': {
         const fl = 0.65 + 0.35 * Math.sin(t * 5.5 + this.ph);
-        ctx.globalAlpha = this.a * fl;
+        ctx.globalAlpha = this.a * fl * ga;
         ctx.fillStyle = `hsl(${this.hue},100%,68%)`;
         ctx.shadowBlur = 6;
         ctx.shadowColor = `hsl(${this.hue},100%,55%)`;
@@ -168,14 +168,14 @@ class Particle {
         break;
       }
       case 'sand': {
-        ctx.globalAlpha = this.a;
+        ctx.globalAlpha = this.a * ga;
         ctx.fillStyle = 'rgba(205,175,115,0.85)';
         ctx.fillRect(this.x, this.y, this.sz, this.sz * 0.5);
         break;
       }
       case 'star': {
         const tw2 = 0.45 + 0.55 * Math.sin(t * this.ts * 60 + this.ph);
-        ctx.globalAlpha = this.a * tw2;
+        ctx.globalAlpha = this.a * tw2 * ga;
         ctx.fillStyle = '#fff';
         ctx.beginPath(); ctx.arc(this.x, this.y, this.sz, 0, TAU); ctx.fill();
         break;
@@ -1587,6 +1587,7 @@ class Momentarium {
     this.t            = 0;
     this.lastTs       = 0;
     this.lastShakeMs  = 0;
+    this.stormLevel   = 0;
     this.hintShown    = true;
     this.safeTop      = 0;
     this.safeBot      = 0;
@@ -1696,8 +1697,9 @@ class Momentarium {
     });
   }
 
-  // Turbulence only — no scene change
+  // Shake — trigger full storm cycle: big burst → steady → light → gone
   onShake() {
+    this.stormLevel = 3.0;
     this.turbulence = 2.0;
     this.particles.forEach(p => p.kick());
   }
@@ -1738,6 +1740,13 @@ class Momentarium {
     this.turbulence = Math.max(0, this.turbulence * Math.pow(CFG.turbulenceDecay, dt / 16));
     this.particles.forEach(p => p.update(this.turbulence, dt));
 
+    // Storm cycle: storm peak → steady → light flurries → gone (~35s total)
+    if (this.stormLevel > 0) {
+      const decay = this.stormLevel > 1.5 ? 0.998 : 0.9975;
+      this.stormLevel = Math.max(0, this.stormLevel * Math.pow(decay, dt / 16));
+      if (this.stormLevel < 0.005) this.stormLevel = 0;
+    }
+
     const spd = CFG.transitionSpeed * (dt / 16);
     if (this.fadeDir === 1) {
       this.fade = Math.min(1, this.fade + spd);
@@ -1765,8 +1774,9 @@ class Momentarium {
       ctx.fillRect(0, 0, W, H);
     }
 
-    // Particles on top of scene, under UI
-    this.particles.forEach(p => p.draw(ctx, this.t));
+    // Particles on top of scene, under UI (alpha driven by storm cycle)
+    const stormAlpha = Math.min(1, this.stormLevel);
+    this.particles.forEach(p => p.draw(ctx, this.t, stormAlpha));
 
     // UI overlay always on top
     renderUI(ctx, W, H, this.sceneIdx, this.safeTop, this.safeBot);
@@ -1781,4 +1791,8 @@ class Momentarium {
   }
 }
 
-window.addEventListener('load', () => new Momentarium());
+window.addEventListener('load', () => {
+  window._app = new Momentarium();
+  // Dev shortcut: press S to simulate a shake
+  window.addEventListener('keydown', e => { if (e.key === 's' || e.key === 'S') window._app.onShake(); });
+});
