@@ -767,10 +767,10 @@ const SCENES = [
             // All four legs drawn before the body fill so the body edge
             // acts as a natural clip — legs emerge cleanly from the belly.
             const legC = '#1c0f07';
-            deerLeg( sz*0.14, -sz*0.36,  0.06 - sw*0.22,  sz*0.18,  0.04 - sw*0.18, sz*0.18, legC); // far front
-            deerLeg(-sz*0.42, -sz*0.36, -0.09 + sw*0.18,  sz*0.17,  0.16 + sw*0.18, sz*0.18, legC); // far back
-            deerLeg( sz*0.22, -sz*0.36,  0.06 + sw*0.22,  sz*0.18,  0.04 + sw*0.18, sz*0.18, legC); // near front
-            deerLeg(-sz*0.34, -sz*0.36, -0.09 - sw*0.18,  sz*0.17,  0.16 - sw*0.18, sz*0.18, legC); // near back
+            deerLeg( sz*0.24, -sz*0.36,  0.06 - sw*0.22,  sz*0.18,  0.04 - sw*0.18, sz*0.18, legC); // far front
+            deerLeg(-sz*0.50, -sz*0.36, -0.09 + sw*0.18,  sz*0.17,  0.16 + sw*0.18, sz*0.18, legC); // far back
+            deerLeg( sz*0.32, -sz*0.36,  0.06 + sw*0.22,  sz*0.18,  0.04 + sw*0.18, sz*0.18, legC); // near front
+            deerLeg(-sz*0.42, -sz*0.36, -0.09 - sw*0.18,  sz*0.17,  0.16 - sw*0.18, sz*0.18, legC); // near back
 
             // Rump / tail patch
             ctx.fillStyle = 'rgba(200,186,162,0.75)';
