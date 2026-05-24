@@ -721,50 +721,151 @@ const SCENES = [
         if (ev.active === 'deer') {
           const dur = 11;
           if (et > dur) { ev.active = null; } else {
-            const p  = et / dur;
+            const p       = et / dur;
             const ps = 0.40, pe = 0.58;
-            const xp = p < ps ? p / ps * 0.5 : p < pe ? 0.5 : 0.5 + (p - pe) / (1 - pe) * 0.5;
+            const xp      = p < ps ? p / ps * 0.5 : p < pe ? 0.5 : 0.5 + (p - pe) / (1 - pe) * 0.5;
             const startX  = ev.dir > 0 ? -S * 0.15 : W + S * 0.15;
             const endX    = ev.dir > 0 ? W + S * 0.15 : -S * 0.15;
             const dx      = startX + (endX - startX) * xp;
-            const sz      = S * 0.13;
+            const sz      = S * 0.14;
             const pausing = p >= ps && p < pe;
             const lookUp  = pausing && (et - ps * dur) > 0.7;
+            const fade    = p < 0.07 ? p / 0.07 : p > 0.93 ? (1 - p) / 0.07 : 1;
 
-            ctx.globalAlpha = p < 0.07 ? p / 0.07 : p > 0.93 ? (1 - p) / 0.07 : 1;
-            ctx.fillStyle = '#150d05'; ctx.strokeStyle = '#150d05';
-
+            ctx.globalAlpha = fade;
             ctx.save();
             ctx.translate(dx, gy);
             if (ev.dir < 0) ctx.scale(-1, 1);
 
-            // Legs — two pairs, swinging alternately
-            const swing = pausing ? 0 : Math.sin(et * 5.2) * sz * 0.10;
-            ctx.lineWidth = sz * 0.09; ctx.lineCap = 'round';
-            [[-sz*0.28, -sz*0.12], [sz*0.10, sz*0.26]].forEach(([x1, x2]) => {
-              ctx.beginPath(); ctx.moveTo(x1, -sz*0.16); ctx.lineTo(x1 + swing,  0); ctx.stroke();
-              ctx.beginPath(); ctx.moveTo(x2, -sz*0.16); ctx.lineTo(x2 - swing,  0); ctx.stroke();
-            });
+            // Walk cycle
+            const wc  = pausing ? 0 : et * 4.6;
+            const sw  = Math.sin(wc);
+            const bob = pausing ? 0 : Math.abs(Math.cos(wc)) * sz * 0.028;
+            ctx.translate(0, -bob);
 
-            // Body
-            ctx.beginPath(); ctx.ellipse(0, -sz*0.40, sz*0.52, sz*0.22, -0.08, 0, TAU); ctx.fill();
+            // Neck geometry
+            const na  = lookUp ? -1.34 : -0.87;
+            const nbx = sz * 0.26, nby = -sz * 0.54;
+            const nex = nbx + Math.cos(na) * sz * 0.30;
+            const ney = nby + Math.sin(na) * sz * 0.30;
 
-            // Neck + head
-            const na = lookUp ? -1.25 : -0.72;
-            const nx = sz * 0.36, ny = -sz * 0.50;
-            const hx = nx + Math.cos(na) * sz * 0.28;
-            const hy = ny + Math.sin(na) * sz * 0.28;
-            ctx.lineWidth = sz * 0.11;
-            ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(hx, hy); ctx.stroke();
-            ctx.beginPath(); ctx.ellipse(hx, hy, sz*0.115, sz*0.09, lookUp ? -0.55 : 0.18, 0, TAU); ctx.fill();
+            // 3-segment leg: angles from vertical (+ = forward), lengths in sz units
+            const deerLeg = (ox, oy, ua, ul, la, ll, col) => {
+              const kx = ox + Math.sin(ua) * ul, ky = oy + Math.cos(ua) * ul;
+              const fx = kx + Math.sin(la) * ll, fy = ky + Math.cos(la) * ll;
+              ctx.strokeStyle = col; ctx.lineCap = 'round';
+              ctx.lineWidth = sz * 0.082;
+              ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(kx, ky); ctx.stroke();
+              ctx.lineWidth = sz * 0.067;
+              ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+              ctx.lineWidth = sz * 0.058;
+              ctx.beginPath(); ctx.moveTo(fx, fy);
+              ctx.lineTo(fx + Math.sin(la + 0.16) * sz * 0.046, fy + Math.cos(la + 0.16) * sz * 0.046);
+              ctx.stroke();
+            };
 
-            // Antlers (two simple forked beams)
-            ctx.lineWidth = sz * 0.038; ctx.lineCap = 'round';
-            const ax = hx + sz*0.03, ay = hy - sz*0.09;
-            ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax-sz*0.05, ay-sz*0.18); ctx.lineTo(ax-sz*0.12, ay-sz*0.26); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(ax-sz*0.03, ay-sz*0.12); ctx.lineTo(ax+sz*0.05, ay-sz*0.21); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(ax-sz*0.04, ay); ctx.lineTo(ax-sz*0.04, ay-sz*0.13); ctx.lineTo(ax-sz*0.10, ay-sz*0.20); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(ax-sz*0.04, ay-sz*0.08); ctx.lineTo(ax+sz*0.03, ay-sz*0.16); ctx.stroke();
+            // Far (darker) pair behind body — opposite swing phase to near pair
+            const farC = '#130b04';
+            deerLeg( sz*0.16, -sz*0.48,  0.06 - sw*0.22,  sz*0.24,  0.04 - sw*0.18, sz*0.25, farC); // far front
+            deerLeg(-sz*0.30, -sz*0.30, -0.09 + sw*0.18,  sz*0.20,  0.16 + sw*0.18, sz*0.19, farC); // far back
+
+            // Rump / tail patch
+            ctx.fillStyle = 'rgba(200,186,162,0.75)';
+            ctx.beginPath(); ctx.ellipse(-sz*0.44, -sz*0.36, sz*0.13, sz*0.10, 0.20, 0, TAU); ctx.fill();
+
+            // Body — bezier silhouette: withers hump, sloping back, distinct rump
+            ctx.fillStyle = '#1c0f07';
+            ctx.beginPath();
+            ctx.moveTo( sz*0.36, -sz*0.26);
+            ctx.bezierCurveTo( sz*0.36, -sz*0.56,  sz*0.10, -sz*0.62, -sz*0.02, -sz*0.60);
+            ctx.bezierCurveTo(-sz*0.22, -sz*0.58, -sz*0.42, -sz*0.50, -sz*0.52, -sz*0.38);
+            ctx.bezierCurveTo(-sz*0.60, -sz*0.30, -sz*0.56, -sz*0.24, -sz*0.46, -sz*0.24);
+            ctx.bezierCurveTo(-sz*0.26, -sz*0.24,  sz*0.18, -sz*0.24,  sz*0.36, -sz*0.26);
+            ctx.closePath(); ctx.fill();
+
+            // Near pair over body
+            const nearC = '#1c0f07';
+            deerLeg( sz*0.22, -sz*0.48,  0.06 + sw*0.22,  sz*0.24,  0.04 + sw*0.18, sz*0.25, nearC); // near front
+            deerLeg(-sz*0.26, -sz*0.30, -0.09 - sw*0.18,  sz*0.20,  0.16 - sw*0.18, sz*0.19, nearC); // near back
+
+            // Neck
+            ctx.strokeStyle = '#1c0f07'; ctx.lineWidth = sz * 0.16; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(nbx, nby); ctx.lineTo(nex, ney); ctx.stroke();
+
+            // Head in rotated coordinate space — headA is shallower than na so muzzle faces forward
+            const headA = lookUp ? -0.52 : -0.26;
+            ctx.save();
+            ctx.translate(nex, ney);
+            ctx.rotate(headA);
+
+            ctx.fillStyle = '#1c0f07';
+            ctx.beginPath(); ctx.ellipse(sz*0.05, 0, sz*0.130, sz*0.088, 0, 0, TAU); ctx.fill(); // skull
+            ctx.beginPath(); ctx.ellipse(sz*0.22, 0, sz*0.108, sz*0.068, 0.1, 0, TAU); ctx.fill(); // muzzle
+
+            // Ear
+            ctx.save();
+            ctx.translate(-sz*0.02, -sz*0.080);
+            ctx.rotate(-0.30);
+            ctx.fillStyle = '#1c0f07';
+            ctx.beginPath(); ctx.ellipse(0, -sz*0.085, sz*0.052, sz*0.078, 0, 0, TAU); ctx.fill();
+            ctx.fillStyle = '#2b1a0b';
+            ctx.beginPath(); ctx.ellipse(0, -sz*0.085, sz*0.025, sz*0.044, 0, 0, TAU); ctx.fill();
+            ctx.restore();
+
+            // Eye — warm amber iris
+            ctx.fillStyle = 'rgba(162,112,42,0.86)';
+            ctx.beginPath(); ctx.arc(sz*0.03, -sz*0.048, sz*0.026, 0, TAU); ctx.fill();
+            ctx.fillStyle = '#070403';
+            ctx.beginPath(); ctx.arc(sz*0.03, -sz*0.048, sz*0.014, 0, TAU); ctx.fill();
+
+            ctx.restore(); // head transform
+
+            // Cold breath while pausing (appears after brief delay)
+            if (pausing) {
+              const bAge  = et - ps * dur;
+              const bFade = Math.min(1, bAge / 0.55);
+              const mox   = nex + Math.cos(headA) * sz * 0.34;
+              const moy   = ney + Math.sin(headA) * sz * 0.34;
+              for (let i = 0; i < 3; i++) {
+                const bp = ((t * 0.62 + i * 0.42) % 1.5) * bFade;
+                ctx.globalAlpha = fade * (1 - bp / 1.5) * 0.28 * bFade;
+                ctx.fillStyle = '#cce4f3';
+                ctx.beginPath();
+                ctx.arc(
+                  mox + Math.cos(headA - 0.06) * bp * sz * 0.25,
+                  moy + Math.sin(headA - 0.06) * bp * sz * 0.25,
+                  sz * 0.025 + bp * sz * 0.050, 0, TAU
+                );
+                ctx.fill();
+              }
+              ctx.globalAlpha = fade;
+            }
+
+            // Antlers — far beam darker for depth
+            ctx.lineCap = 'round';
+            const upA = headA - Math.PI * 0.5;
+            const abx = nex + Math.cos(upA) * sz * 0.080 + Math.cos(headA) * sz * 0.016;
+            const aby = ney + Math.sin(upA) * sz * 0.080 + Math.sin(headA) * sz * 0.016;
+
+            // Far antler
+            ctx.strokeStyle = '#0e0804';
+            ctx.lineWidth = sz * 0.028;
+            const fa2x = abx - sz*0.03, fa2y = aby - sz*0.23;
+            ctx.beginPath(); ctx.moveTo(abx - sz*0.04, aby); ctx.lineTo(fa2x, fa2y); ctx.stroke();
+            ctx.lineWidth = sz * 0.017;
+            ctx.beginPath(); ctx.moveTo(abx - sz*0.040, aby - sz*0.07); ctx.lineTo(abx + sz*0.048, aby - sz*0.17); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(fa2x, fa2y); ctx.lineTo(fa2x - sz*0.052, fa2y - sz*0.09); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(fa2x, fa2y); ctx.lineTo(fa2x + sz*0.036, fa2y - sz*0.10); ctx.stroke();
+
+            // Near antler
+            ctx.strokeStyle = '#1b1008';
+            ctx.lineWidth = sz * 0.034;
+            const na2x = abx - sz*0.01, na2y = aby - sz*0.25;
+            ctx.beginPath(); ctx.moveTo(abx, aby); ctx.lineTo(na2x, na2y); ctx.stroke();
+            ctx.lineWidth = sz * 0.020;
+            ctx.beginPath(); ctx.moveTo(abx + sz*0.005, aby - sz*0.06); ctx.lineTo(abx + sz*0.092, aby - sz*0.18); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(na2x + sz*0.008, na2y + sz*0.05); ctx.lineTo(na2x - sz*0.062, na2y - sz*0.09); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(na2x + sz*0.008, na2y + sz*0.05); ctx.lineTo(na2x + sz*0.054, na2y - sz*0.11); ctx.stroke();
 
             ctx.restore();
           }
