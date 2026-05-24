@@ -671,7 +671,10 @@ const SCENES = [
       twigThicket(cx + S * 0.58, gy + S * 0.24, 0.72);
 
       // ── Timed events ──────────────────────────────────────────────────────
-      const EV_NAMES = ['deer','owl','rabbit','shootingStar','curtainShift','smokeBurst'];
+      const EV_NAMES = [
+        'deer','owl','rabbit','fox','shootingStar',
+        'pondCrack','snowSlip','branchDrop','curtainShift','smokeBurst'
+      ];
       if (!this._ev) {
         const lf = {};
         EV_NAMES.forEach(n => lf[n] = t - 999);
@@ -680,7 +683,7 @@ const SCENES = [
       const ev = this._ev;
       const EV_MIN = 0.01, EV_MAX = 1.0, EV_RECOVERY = 0.012; // ~82s to full weight
       if (!ev.active && t >= ev.nextT) {
-        const weights = EV_NAMES.map(n => Math.min(EV_MAX, EV_MIN + (t - ev.lastFired[n]) * EV_RECOVERY));
+        const weights = EV_NAMES.map(n => Math.min(EV_MAX, EV_MIN + (t - (ev.lastFired[n] ?? t - 999)) * EV_RECOVERY));
         const total   = weights.reduce((a, b) => a + b, 0);
         let r = Math.random() * total;
         let chosen = EV_NAMES[EV_NAMES.length - 1];
@@ -833,6 +836,56 @@ const SCENES = [
           }
         }
 
+        // -- FOX -----------------------------------------------------------
+        else if (ev.active === 'fox') {
+          const dur = 7.5;
+          if (et > dur) { ev.active = null; } else {
+            const p      = et / dur;
+            const startX = ev.dir > 0 ? -S * 0.16 : W + S * 0.16;
+            const endX   = ev.dir > 0 ? W + S * 0.16 : -S * 0.16;
+            const fx     = startX + (endX - startX) * p;
+            const fy     = gy + S * 0.095 + Math.sin(et * 4.4) * S * 0.010;
+            const sz     = S * 0.092;
+            const fade   = p < 0.08 ? p / 0.08 : p > 0.92 ? (1 - p) / 0.08 : 1;
+            const step   = Math.sin(et * 8.0) * sz * 0.10;
+
+            ctx.save();
+            ctx.globalAlpha = fade;
+            ctx.translate(fx, fy);
+            if (ev.dir < 0) ctx.scale(-1, 1);
+
+            ctx.fillStyle = '#9f4b19';
+            ctx.beginPath(); ctx.ellipse(0, -sz * 0.26, sz * 0.48, sz * 0.20, -0.08, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(sz * 0.40, -sz * 0.35, sz * 0.18, sz * 0.13, -0.15, 0, TAU); ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(sz * 0.47, -sz * 0.48);
+            ctx.lineTo(sz * 0.55, -sz * 0.72);
+            ctx.lineTo(sz * 0.62, -sz * 0.45);
+            ctx.closePath(); ctx.fill();
+
+            ctx.fillStyle = '#6f2e10';
+            ctx.beginPath(); ctx.ellipse(-sz * 0.45, -sz * 0.28, sz * 0.34, sz * 0.12, -0.38, 0, TAU); ctx.fill();
+            ctx.fillStyle = '#edf4fb';
+            ctx.beginPath(); ctx.ellipse(-sz * 0.70, -sz * 0.38, sz * 0.13, sz * 0.055, -0.35, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(sz * 0.48, -sz * 0.28, sz * 0.09, sz * 0.045, -0.12, 0, TAU); ctx.fill();
+
+            ctx.strokeStyle = '#5a260d';
+            ctx.lineWidth = sz * 0.055;
+            ctx.lineCap = 'round';
+            [-0.24, 0.02, 0.26].forEach((lx, i) => {
+              ctx.beginPath();
+              ctx.moveTo(sz * lx, -sz * 0.10);
+              ctx.lineTo(sz * lx + (i % 2 ? -step : step), sz * 0.08);
+              ctx.stroke();
+            });
+
+            ctx.fillStyle = '#160b05';
+            ctx.beginPath(); ctx.arc(sz * 0.56, -sz * 0.36, sz * 0.018, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.arc(sz * 0.58, -sz * 0.30, sz * 0.020, 0, TAU); ctx.fill();
+            ctx.restore();
+          }
+        }
+
         // ── SHOOTING STAR ────────────────────────────────────────────────
         else if (ev.active === 'shootingStar') {
           const dur = 1.8;
@@ -905,6 +958,132 @@ const SCENES = [
               ctx.beginPath(); ctx.arc(sx, sy, S * 0.044 + p * S * 0.09, 0, TAU); ctx.fill();
             }
             ctx.globalAlpha = 1;
+          }
+        }
+
+        // -- POND CRACK ----------------------------------------------------
+        else if (ev.active === 'pondCrack') {
+          const dur = 2.6;
+          if (et > dur) { ev.active = null; } else {
+            if (!ev.data.init) {
+              ev.data.init = true;
+              ev.data.x = pondCx + rand(-pondW * 0.18, pondW * 0.18);
+              ev.data.y = pondCy + rand(-pondH * 0.10, pondH * 0.10);
+              ev.data.angle = rand(-0.42, 0.42);
+            }
+            const p = et / dur;
+            const grow = Math.min(1, p / 0.55);
+            const fade = p > 0.72 ? (1 - p) / 0.28 : 1;
+            const len = pondW * 0.34 * grow;
+            const x = ev.data.x, y = ev.data.y, a = ev.data.angle;
+            const pts = [
+              [-0.50,  0.00], [-0.30, -0.10], [-0.08,  0.02],
+              [ 0.10, -0.08], [ 0.30,  0.05], [ 0.50, -0.02],
+            ];
+
+            ctx.save();
+            ctx.globalAlpha = fade;
+            ctx.translate(x, y);
+            ctx.rotate(a);
+            ctx.strokeStyle = 'rgba(245,252,255,0.92)';
+            ctx.lineWidth = 1.7;
+            ctx.shadowBlur = 7;
+            ctx.shadowColor = 'rgba(200,235,255,0.85)';
+            ctx.beginPath();
+            pts.forEach(([px, py], i) => {
+              const xx = px * len;
+              const yy = py * pondH;
+              i === 0 ? ctx.moveTo(xx, yy) : ctx.lineTo(xx, yy);
+            });
+            ctx.stroke();
+
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(45,76,102,0.55)';
+            ctx.lineWidth = 0.8;
+            [[-0.12, -0.04, -0.20], [0.18, 0.04, 0.20], [0.31, 0.02, -0.15]].forEach(([px, py, by]) => {
+              ctx.beginPath();
+              ctx.moveTo(px * len, py * pondH);
+              ctx.lineTo((px + by) * len, (py + 0.16) * pondH);
+              ctx.stroke();
+            });
+            ctx.restore();
+          }
+        }
+
+        // -- SNOW SLIP -----------------------------------------------------
+        else if (ev.active === 'snowSlip') {
+          const dur = 3.2;
+          if (et > dur) { ev.active = null; } else {
+            if (!ev.data.init) {
+              ev.data.init = true;
+              ev.data.side = Math.random() < 0.5 ? -1 : 1;
+            }
+            const p = et / dur;
+            const side = ev.data.side;
+            const roofTopX = cx;
+            const roofTopY = cby - rh + 2;
+            const roofEdgeX = side < 0 ? cbx - S * 0.04 : cbx + cw + S * 0.04;
+            const roofEdgeY = cby + 5;
+            const slideP = Math.min(1, p / 0.58);
+            const clumpX = roofTopX + (roofEdgeX - roofTopX) * slideP;
+            const clumpY = roofTopY + (roofEdgeY - roofTopY) * slideP;
+            const fallP = p > 0.46 ? (p - 0.46) / 0.54 : 0;
+            const alpha = p > 0.82 ? (1 - p) / 0.18 : 1;
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = 'rgba(236,246,252,0.96)';
+            ctx.beginPath();
+            ctx.ellipse(clumpX, clumpY, S * 0.050, S * 0.014, side * 0.50, 0, TAU);
+            ctx.fill();
+
+            if (fallP > 0) {
+              for (let i = 0; i < 12; i++) {
+                const fp = Math.min(1, fallP + i * 0.025);
+                const px = roofEdgeX + side * S * (0.025 + i * 0.006) + Math.sin(i * 1.7) * S * 0.018;
+                const py = roofEdgeY + fp * fp * S * 0.34 + i * S * 0.004;
+                ctx.globalAlpha = alpha * (1 - fp) * 0.92;
+                ctx.beginPath(); ctx.arc(px, py, S * (0.010 + (i % 3) * 0.003), 0, TAU); ctx.fill();
+              }
+              ctx.globalAlpha = alpha;
+              ctx.beginPath();
+              ctx.ellipse(roofEdgeX + side * S * 0.095, gy - S * 0.004, S * 0.13 * fallP, S * 0.024 * fallP, 0, 0, TAU);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+        }
+
+        // -- BRANCH DROP ---------------------------------------------------
+        else if (ev.active === 'branchDrop') {
+          const dur = 2.8;
+          if (et > dur) { ev.active = null; } else {
+            if (!ev.data.init) {
+              ev.data.init = true;
+              const tree = Math.random() < 0.5
+                ? { x: cx - S * 0.72, h: S * 0.65 }
+                : { x: cx + S * 0.74, h: S * 0.60 };
+              ev.data.dropX = tree.x + rand(-tree.h * 0.035, tree.h * 0.035);
+              ev.data.dropY = gy - tree.h * 0.64;
+            }
+            const p = et / dur;
+            const burst = p < 0.16 ? p / 0.16 : p > 0.76 ? (1 - p) / 0.24 : 1;
+            const dx = ev.data.dropX;
+            const dy = ev.data.dropY;
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(234,244,252,0.94)';
+            for (let i = 0; i < 18; i++) {
+              const lag = i * 0.024;
+              const fp = clamp((p - lag) / 0.72, 0, 1);
+              const sway = Math.sin(t * 2.2 + i * 1.9) * S * 0.012;
+              const px = dx + sway + (i - 8.5) * S * 0.0026;
+              const py = dy + fp * fp * S * 0.30 + i * S * 0.002;
+              ctx.globalAlpha = burst * (1 - fp * 0.72);
+              ctx.beginPath(); ctx.arc(px, py, S * (0.007 + (i % 3) * 0.002), 0, TAU); ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            ctx.restore();
           }
         }
 
