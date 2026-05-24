@@ -463,13 +463,26 @@ const SCENES = [
       });
 
       // ── Timed events ──────────────────────────────────────────────────────
-      if (!this._ev) this._ev = { nextT: t + 3, active: null, start: 0, dir: 1 };
+      const EV_NAMES = ['deer','owl','rabbit','shootingStar','curtainShift','smokeBurst'];
+      if (!this._ev) {
+        const lf = {};
+        EV_NAMES.forEach(n => lf[n] = t - 999);
+        this._ev = { nextT: t + 3, active: null, start: 0, dir: 1, lastFired: lf };
+      }
       const ev = this._ev;
+      const EV_MIN = 0.01, EV_MAX = 1.0, EV_RECOVERY = 0.012; // ~82s to full weight
       if (!ev.active && t >= ev.nextT) {
-        ev.active = ['deer','owl','rabbit'][Math.floor(Math.random() * 3)];
-        ev.start  = t;
-        ev.dir    = Math.random() < 0.5 ? 1 : -1;
-        ev.nextT  = t + 10 + Math.random() * 8;
+        const weights = EV_NAMES.map(n => Math.min(EV_MAX, EV_MIN + (t - ev.lastFired[n]) * EV_RECOVERY));
+        const total   = weights.reduce((a, b) => a + b, 0);
+        let r = Math.random() * total;
+        let chosen = EV_NAMES[EV_NAMES.length - 1];
+        for (let i = 0; i < EV_NAMES.length; i++) { r -= weights[i]; if (r <= 0) { chosen = EV_NAMES[i]; break; } }
+        ev.active            = chosen;
+        ev.lastFired[chosen] = t;
+        ev.start             = t;
+        ev.dir               = Math.random() < 0.5 ? 1 : -1;
+        ev.data              = {};
+        ev.nextT             = t + 10 + Math.random() * 8;
       }
 
       if (ev.active) {
@@ -609,6 +622,81 @@ const SCENES = [
             ctx.beginPath(); ctx.arc(-sz*0.48, sz*0.05, sz*0.13, 0, TAU); ctx.fill();
 
             ctx.restore();
+          }
+        }
+
+        // ── SHOOTING STAR ────────────────────────────────────────────────
+        else if (ev.active === 'shootingStar') {
+          const dur = 1.8;
+          if (et > dur) { ev.active = null; } else {
+            if (!ev.data.init) {
+              ev.data.init  = true;
+              ev.data.x     = W * 0.08 + Math.random() * W * 0.55;
+              ev.data.y     = H * 0.04 + Math.random() * H * 0.18;
+              ev.data.angle = 0.38 + Math.random() * 0.32;
+            }
+            const p       = et / dur;
+            const alpha   = p < 0.12 ? p / 0.12 : p > 0.70 ? 1 - (p - 0.70) / 0.30 : 1;
+            const dist    = p * W * 0.42;
+            const tailLen = Math.min(dist, W * 0.22);
+            const hx = ev.data.x + Math.cos(ev.data.angle) * dist;
+            const hy = ev.data.y + Math.sin(ev.data.angle) * dist;
+            const tx = hx - Math.cos(ev.data.angle) * tailLen;
+            const ty = hy - Math.sin(ev.data.angle) * tailLen;
+
+            ctx.globalAlpha = alpha;
+            const streak = ctx.createLinearGradient(tx, ty, hx, hy);
+            streak.addColorStop(0,   'rgba(255,255,255,0)');
+            streak.addColorStop(0.38, 'rgba(255,245,170,0.50)');
+            streak.addColorStop(0.78, 'rgba(180,225,255,0.85)');
+            streak.addColorStop(1,   'rgba(255,255,255,1)');
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = 'rgba(200,230,255,0.95)';
+            ctx.strokeStyle = streak; ctx.lineWidth = 4; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke();
+            ctx.globalAlpha = alpha * 0.36;
+            ctx.strokeStyle = 'rgba(160,210,255,0.65)';
+            ctx.lineWidth = 10;
+            ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke();
+            ctx.globalAlpha = alpha;
+            const hg = ctx.createRadialGradient(hx, hy, 0, hx, hy, 14);
+            hg.addColorStop(0, 'rgba(255,255,255,0.95)');
+            hg.addColorStop(1, 'rgba(255,245,180,0)');
+            ctx.fillStyle = hg;
+            ctx.beginPath(); ctx.arc(hx, hy, 14, 0, TAU); ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+        }
+
+        // ── CURTAIN SHIFT ────────────────────────────────────────────────
+        else if (ev.active === 'curtainShift') {
+          const dur = 3.0;
+          if (et > dur) { ev.active = null; } else {
+            if (!ev.data.init) {
+              ev.data.init  = true;
+              ev.data.which = Math.random() < 0.5 ? 0 : 1;
+            }
+            const owx = ev.data.which === 0 ? wx : wx2;
+            const dim = Math.sin((et / dur) * Math.PI) * 0.72;
+            ctx.fillStyle = `rgba(6,3,1,${dim})`;
+            ctx.fillRect(owx, wy, ww, wh);
+          }
+        }
+
+        // ── SMOKE BURST ──────────────────────────────────────────────────
+        else if (ev.active === 'smokeBurst') {
+          const dur = 5.0;
+          if (et > dur) { ev.active = null; } else {
+            const intensity = et < 0.6 ? et / 0.6 : et > 3.5 ? (dur - et) / 1.5 : 1;
+            for (let i = 0; i < 10; i++) {
+              const p  = (t * 0.9 + i * 0.21) % 2.4;
+              const sx = chx + S * 0.035 + Math.sin(t * 0.95 + i * 1.5) * S * 0.07;
+              const sy = chy - p * S * 0.62;
+              ctx.globalAlpha = (1 - p / 2.4) * 0.50 * intensity;
+              ctx.fillStyle = '#c8c8c8';
+              ctx.beginPath(); ctx.arc(sx, sy, S * 0.044 + p * S * 0.09, 0, TAU); ctx.fill();
+            }
+            ctx.globalAlpha = 1;
           }
         }
 
