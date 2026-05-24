@@ -745,7 +745,7 @@ const SCENES = [
 
             // Neck geometry
             const na  = lookUp ? -1.34 : -0.87;
-            const nbx = sz * 0.26, nby = -sz * 0.54;
+            const nbx = sz * 0.26, nby = -sz * 0.62;
             const nex = nbx + Math.cos(na) * sz * 0.30;
             const ney = nby + Math.sin(na) * sz * 0.30;
 
@@ -764,29 +764,32 @@ const SCENES = [
               ctx.stroke();
             };
 
+            // Belly level — all legs attach here so they emerge from the body edge
+            const bly = -sz * 0.36;
+
             // Far (darker) pair behind body — opposite swing phase to near pair
             const farC = '#130b04';
-            deerLeg( sz*0.16, -sz*0.48,  0.06 - sw*0.22,  sz*0.24,  0.04 - sw*0.18, sz*0.25, farC); // far front
-            deerLeg(-sz*0.30, -sz*0.30, -0.09 + sw*0.18,  sz*0.20,  0.16 + sw*0.18, sz*0.19, farC); // far back
+            deerLeg( sz*0.16, bly,  0.06 - sw*0.22,  sz*0.18,  0.04 - sw*0.18, sz*0.18, farC); // far front
+            deerLeg(-sz*0.30, bly, -0.09 + sw*0.18,  sz*0.17,  0.16 + sw*0.18, sz*0.18, farC); // far back
 
             // Rump / tail patch
             ctx.fillStyle = 'rgba(200,186,162,0.75)';
-            ctx.beginPath(); ctx.ellipse(-sz*0.44, -sz*0.36, sz*0.13, sz*0.10, 0.20, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(-sz*0.44, -sz*0.46, sz*0.13, sz*0.10, 0.20, 0, TAU); ctx.fill();
 
             // Body — bezier silhouette: withers hump, sloping back, distinct rump
             ctx.fillStyle = '#1c0f07';
             ctx.beginPath();
-            ctx.moveTo( sz*0.36, -sz*0.26);
-            ctx.bezierCurveTo( sz*0.36, -sz*0.56,  sz*0.10, -sz*0.62, -sz*0.02, -sz*0.60);
-            ctx.bezierCurveTo(-sz*0.22, -sz*0.58, -sz*0.42, -sz*0.50, -sz*0.52, -sz*0.38);
-            ctx.bezierCurveTo(-sz*0.60, -sz*0.30, -sz*0.56, -sz*0.24, -sz*0.46, -sz*0.24);
-            ctx.bezierCurveTo(-sz*0.26, -sz*0.24,  sz*0.18, -sz*0.24,  sz*0.36, -sz*0.26);
+            ctx.moveTo( sz*0.36, bly);
+            ctx.bezierCurveTo( sz*0.36, -sz*0.64,  sz*0.10, -sz*0.70, -sz*0.02, -sz*0.68);
+            ctx.bezierCurveTo(-sz*0.22, -sz*0.66, -sz*0.42, -sz*0.58, -sz*0.52, -sz*0.46);
+            ctx.bezierCurveTo(-sz*0.60, -sz*0.38, -sz*0.56, bly, -sz*0.46, bly);
+            ctx.bezierCurveTo(-sz*0.26, bly,  sz*0.18, bly,  sz*0.36, bly);
             ctx.closePath(); ctx.fill();
 
             // Near pair over body
             const nearC = '#1c0f07';
-            deerLeg( sz*0.22, -sz*0.48,  0.06 + sw*0.22,  sz*0.24,  0.04 + sw*0.18, sz*0.25, nearC); // near front
-            deerLeg(-sz*0.26, -sz*0.30, -0.09 - sw*0.18,  sz*0.20,  0.16 - sw*0.18, sz*0.19, nearC); // near back
+            deerLeg( sz*0.22, bly,  0.06 + sw*0.22,  sz*0.18,  0.04 + sw*0.18, sz*0.18, nearC); // near front
+            deerLeg(-sz*0.26, bly, -0.09 - sw*0.18,  sz*0.17,  0.16 - sw*0.18, sz*0.18, nearC); // near back
 
             // Neck
             ctx.strokeStyle = '#1c0f07'; ctx.lineWidth = sz * 0.16; ctx.lineCap = 'round';
@@ -1900,6 +1903,25 @@ class Momentarium {
     renderUI(ctx, W, H, this.sceneIdx, this.safeTop, this.safeBot);
   }
 
+  // Debug: force-start a named Tiny Cabin event immediately
+  triggerCabinEvent(name) {
+    if (this.sceneIdx !== 0) return;
+    const scene = SCENES[0];
+    const EV_NAMES = ['deer','owl','rabbit','fox','shootingStar','pondCrack','snowSlip','branchDrop','curtainShift','smokeBurst'];
+    if (!scene._ev) {
+      const lf = {};
+      EV_NAMES.forEach(n => lf[n] = this.t - 999);
+      scene._ev = { nextT: this.t, active: null, start: 0, dir: 1, lastFired: lf };
+    }
+    const ev = scene._ev;
+    ev.active            = name;
+    ev.lastFired[name]   = this.t;
+    ev.start             = this.t;
+    ev.dir               = Math.random() < 0.5 ? 1 : -1;
+    ev.data              = {};
+    ev.nextT             = this.t + 12 + Math.random() * 8;
+  }
+
   loop(ts) {
     const dt = Math.min(50, ts - (this.lastTs || ts));
     this.lastTs = ts;
@@ -1912,5 +1934,15 @@ class Momentarium {
 window.addEventListener('load', () => {
   window._app = new Momentarium();
   // Dev shortcut: press S to simulate a shake
-  window.addEventListener('keydown', e => { if (e.key === 's' || e.key === 'S') window._app.onShake(); });
+  // Debug keys: S = shake; 1–0 = trigger Tiny Cabin events
+  // 1=deer 2=owl 3=rabbit 4=fox 5=shootingStar
+  // 6=pondCrack 7=snowSlip 8=branchDrop 9=curtainShift 0=smokeBurst
+  const _cabinKeys = {
+    '1':'deer','2':'owl','3':'rabbit','4':'fox','5':'shootingStar',
+    '6':'pondCrack','7':'snowSlip','8':'branchDrop','9':'curtainShift','0':'smokeBurst',
+  };
+  window.addEventListener('keydown', e => {
+    if (e.key === 's' || e.key === 'S') { window._app.onShake(); return; }
+    if (_cabinKeys[e.key]) window._app.triggerCabinEvent(_cabinKeys[e.key]);
+  });
 });
