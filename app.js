@@ -284,7 +284,59 @@ const SCENES = [
       ctx.restore();
 
       drawStarField(ctx, W, H, 40, t);
+
+      // Distant mountains and tiny cabin lights beyond the tree line
+      const mountain = (baseY, peaks, fill, capAlpha) => {
+        ctx.fillStyle = fill;
+        ctx.beginPath();
+        ctx.moveTo(0, baseY);
+        peaks.forEach(([px, py], i) => {
+          const x = px * W;
+          const y = py * H;
+          i === 0 ? ctx.lineTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.lineTo(W, baseY);
+        ctx.closePath(); ctx.fill();
+
+        ctx.fillStyle = `rgba(220,235,248,${capAlpha})`;
+        peaks.forEach(([px, py], i) => {
+          if (i === 0 || i === peaks.length - 1 || i % 2 === 0) return;
+          const x = px * W;
+          const y = py * H;
+          const capW = W * 0.040;
+          const capH = H * 0.030;
+          ctx.beginPath();
+          ctx.moveTo(x, y + capH * 0.15);
+          ctx.lineTo(x - capW, y + capH);
+          ctx.lineTo(x - capW * 0.18, y + capH * 0.70);
+          ctx.lineTo(x, y + capH * 1.05);
+          ctx.lineTo(x + capW * 0.22, y + capH * 0.65);
+          ctx.lineTo(x + capW, y + capH);
+          ctx.closePath(); ctx.fill();
+        });
+      };
+      mountain(gy + H * 0.01, [
+        [0.00, 0.62], [0.12, 0.45], [0.26, 0.58], [0.38, 0.42],
+        [0.54, 0.59], [0.70, 0.46], [0.86, 0.58], [1.00, 0.48],
+      ], '#101f34', 0.34);
+      mountain(gy + H * 0.02, [
+        [0.00, 0.66], [0.18, 0.52], [0.33, 0.63], [0.50, 0.50],
+        [0.66, 0.64], [0.82, 0.51], [1.00, 0.62],
+      ], '#142842', 0.24);
       drawSnowGround(ctx, W, H, gy);
+
+      const distantLight = (x, y, s, phase) => {
+        const pulse = 0.82 + 0.18 * Math.sin(t * 1.7 + phase);
+        const glow = ctx.createRadialGradient(x, y, 0, x, y, s * 7);
+        glow.addColorStop(0, `rgba(255,190,86,${0.22 * pulse})`);
+        glow.addColorStop(1, 'rgba(255,165,60,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(x, y, s * 7, 0, TAU); ctx.fill();
+        ctx.fillStyle = `rgba(255,203,104,${0.82 * pulse})`;
+        ctx.fillRect(x - s, y - s * 0.7, s * 2, s * 1.4);
+      };
+      distantLight(W * 0.18, gy - H * 0.075, Math.max(1.2, S * 0.008), 0.2);
+      distantLight(W * 0.84, gy - H * 0.060, Math.max(1.0, S * 0.006), 2.8);
 
       // Pine trees spanning scene width
       const pine = (tx, ty, h) => {
