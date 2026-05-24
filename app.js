@@ -776,14 +776,21 @@ const SCENES = [
             ctx.fillStyle = 'rgba(200,186,162,0.75)';
             ctx.beginPath(); ctx.ellipse(-sz*0.44, -sz*0.46, sz*0.13, sz*0.10, 0.20, 0, TAU); ctx.fill();
 
-            // Body — bezier silhouette covers the leg tops; belly is flat at -sz*0.36
+            // Body — rounded rectangle: flat top/bottom, small rounded corners
+            const bT = -sz*0.63, bB = -sz*0.36;
+            const bF =  sz*0.32, bK = -sz*0.50;
+            const cr  =  sz*0.08;
             ctx.fillStyle = '#1c0f07';
             ctx.beginPath();
-            ctx.moveTo( sz*0.36, -sz*0.36);
-            ctx.bezierCurveTo( sz*0.36, -sz*0.64,  sz*0.10, -sz*0.70, -sz*0.02, -sz*0.68);
-            ctx.bezierCurveTo(-sz*0.22, -sz*0.66, -sz*0.42, -sz*0.58, -sz*0.52, -sz*0.46);
-            ctx.bezierCurveTo(-sz*0.60, -sz*0.38, -sz*0.56, -sz*0.36, -sz*0.46, -sz*0.36);
-            ctx.bezierCurveTo(-sz*0.26, -sz*0.36,  sz*0.18, -sz*0.36,  sz*0.36, -sz*0.36);
+            ctx.moveTo(bF - cr, bT);
+            ctx.lineTo(bK + cr, bT);
+            ctx.quadraticCurveTo(bK, bT, bK, bT + cr);
+            ctx.lineTo(bK, bB - cr);
+            ctx.quadraticCurveTo(bK, bB, bK + cr, bB);
+            ctx.lineTo(bF - cr, bB);
+            ctx.quadraticCurveTo(bF, bB, bF, bB - cr);
+            ctx.lineTo(bF, bT + cr);
+            ctx.quadraticCurveTo(bF, bT, bF - cr, bT);
             ctx.closePath(); ctx.fill();
 
             // Neck
