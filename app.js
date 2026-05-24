@@ -233,6 +233,7 @@ const SCENES = [
   {
     name: 'Tiny Cabin',
     particleType: 'snow',
+    particleCount: 500,
     draw(ctx, W, H, t) {
       const S  = Math.min(W, H) * 0.46;
       const cx = W / 2;
@@ -244,6 +245,43 @@ const SCENES = [
       sky.addColorStop(0.65, '#0d1c30');
       sky.addColorStop(1, '#1c2d42');
       ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+
+      // Aurora Borealis — three slow undulating curtains
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      const aBase = 0.72 + 0.28 * Math.sin(t * 0.34);
+      const auroraBand = (baseY, bw, hue, phase, sp) => {
+        const steps = 64;
+        const ag = ctx.createLinearGradient(0, baseY - bw, 0, baseY + bw);
+        ag.addColorStop(0,   `hsla(${hue},88%,52%,0)`);
+        ag.addColorStop(0.28,`hsla(${hue},88%,52%,${0.22 * aBase})`);
+        ag.addColorStop(0.5, `hsla(${hue},90%,66%,${0.34 * aBase})`);
+        ag.addColorStop(0.72,`hsla(${hue},88%,52%,${0.22 * aBase})`);
+        ag.addColorStop(1,   `hsla(${hue},88%,52%,0)`);
+        ctx.fillStyle = ag;
+        ctx.beginPath();
+        for (let i = 0; i <= steps; i++) {
+          const p = i / steps;
+          const x = p * W;
+          const y = baseY - bw
+            + Math.sin(p * Math.PI * 2.7 + t * sp + phase)       * bw * 0.72
+            + Math.sin(p * Math.PI * 5.2 + t * sp * 1.7 + phase) * bw * 0.22;
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        for (let i = steps; i >= 0; i--) {
+          const p = i / steps;
+          const x = p * W;
+          const y = baseY + bw
+            + Math.sin(p * Math.PI * 2.7 + t * sp + phase + 0.7) * bw * 0.72
+            + Math.sin(p * Math.PI * 5.2 + t * sp * 1.7 + phase) * bw * 0.22;
+          ctx.lineTo(x, y);
+        }
+        ctx.closePath(); ctx.fill();
+      };
+      auroraBand(H * 0.14, H * 0.056, 148, 0.0, 0.27);
+      auroraBand(H * 0.21, H * 0.044, 168, 2.2, 0.21);
+      auroraBand(H * 0.09, H * 0.068, 140, 4.6, 0.17);
+      ctx.restore();
 
       drawStarField(ctx, W, H, 40, t);
       drawSnowGround(ctx, W, H, gy);
@@ -276,9 +314,38 @@ const SCENES = [
       pine(cx - S * 1.32, gy, S * 0.38);
       pine(cx + S * 1.36, gy, S * 0.35);
 
-      // Cabin body
+      // Cabin geometry — computed early so light cone can reference it
       const cw = S * 0.44, ch = S * 0.38;
       const cbx = cx - cw / 2, cby = gy - ch;
+      const rh  = S * 0.28;
+
+      // Window positions — raised high and spread wide so door never overlaps
+      const ww = S * 0.12, wh = S * 0.12;
+      const wx  = cx - S * 0.195, wy  = cby + ch * 0.10; // left window
+      const wx2 = cx + S * 0.075, wy2 = wy;               // right window
+
+      // Firelight flicker — multi-frequency noise keeps it organic
+      const flk = 0.80
+        + 0.10 * Math.sin(t * 6.8)
+        + 0.06 * Math.sin(t * 11.4 + 1.3)
+        + 0.04 * Math.sin(t *  3.2 + 0.8);
+
+      // Window light cone cast onto snow (drawn before cabin walls)
+      const winCx  = wx + ww / 2;
+      const coneW  = S * 0.52;
+      const coneG  = ctx.createLinearGradient(winCx, wy + wh, winCx, gy);
+      coneG.addColorStop(0,   `rgba(255,170,50,${0.32 * flk})`);
+      coneG.addColorStop(0.55,`rgba(255,158,38,${0.13 * flk})`);
+      coneG.addColorStop(1,   'rgba(255,150,30,0)');
+      ctx.fillStyle = coneG;
+      ctx.beginPath();
+      ctx.moveTo(winCx - ww * 0.28, wy + wh);
+      ctx.lineTo(winCx - coneW, gy);
+      ctx.lineTo(winCx + coneW, gy);
+      ctx.lineTo(winCx + ww * 0.28, wy + wh);
+      ctx.closePath(); ctx.fill();
+
+      // Cabin body
       ctx.fillStyle = '#4a3628';
       ctx.fillRect(cbx, cby, cw, ch);
       ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 0.8;
@@ -290,7 +357,6 @@ const SCENES = [
       }
 
       // Roof
-      const rh = S * 0.28;
       ctx.fillStyle = '#222';
       ctx.beginPath();
       ctx.moveTo(cx, cby - rh);
@@ -318,26 +384,237 @@ const SCENES = [
       }
       ctx.globalAlpha = 1;
 
-      // Window warm glow
-      const wx = cx - S * 0.07, wy = cby + ch * 0.27;
-      const ww = S * 0.12, wh = S * 0.12;
-      const wg = ctx.createRadialGradient(wx + ww/2, wy + wh/2, 0, wx + ww/2, wy + wh/2, S * 0.26);
-      wg.addColorStop(0, 'rgba(255,195,70,0.35)');
-      wg.addColorStop(1, 'rgba(255,195,70,0)');
-      ctx.fillStyle = wg;
-      ctx.beginPath(); ctx.arc(wx + ww/2, wy + wh/2, S * 0.26, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#fde090'; ctx.fillRect(wx, wy, ww, wh);
-      ctx.strokeStyle = '#4a3628'; ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(wx + ww/2, wy); ctx.lineTo(wx + ww/2, wy + wh);
-      ctx.moveTo(wx, wy + wh/2); ctx.lineTo(wx + ww, wy + wh/2);
-      ctx.stroke();
+      // Helper: draw a flickering warm window
+      const drawWindow = (owx, owy) => {
+        const wLum = 56 + flk * 14;
+        const wAlpha = 0.32 + flk * 0.08;
+        const rg = ctx.createRadialGradient(owx+ww/2, owy+wh/2, 0, owx+ww/2, owy+wh/2, S * 0.24);
+        rg.addColorStop(0, `rgba(255,${Math.round(172 + flk * 28)},55,${wAlpha})`);
+        rg.addColorStop(1, 'rgba(255,185,60,0)');
+        ctx.fillStyle = rg;
+        ctx.beginPath(); ctx.arc(owx+ww/2, owy+wh/2, S * 0.24, 0, TAU); ctx.fill();
+        ctx.fillStyle = `hsl(40,96%,${Math.round(wLum)}%)`;
+        ctx.fillRect(owx, owy, ww, wh);
+        ctx.strokeStyle = '#3d2d1e'; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(owx + ww/2, owy);       ctx.lineTo(owx + ww/2, owy + wh);
+        ctx.moveTo(owx,        owy + wh/2); ctx.lineTo(owx + ww,   owy + wh/2);
+        ctx.stroke();
+      };
 
-      // Door
-      const dw = S * 0.1, dh = S * 0.18;
-      ctx.fillStyle = '#1c0f06';
-      ctx.fillRect(cx - dw/2, gy - dh, dw, dh);
-      ctx.beginPath(); ctx.arc(cx, gy - dh, dw/2, Math.PI, 0); ctx.fill();
+      drawWindow(wx,  wy);
+      drawWindow(wx2, wy2);
+
+      // Door — frame, panelled body, knob, porch step, overhead lantern
+      const dw = S * 0.11, dh = S * 0.20;
+      const dx = cx - dw / 2, dy = gy - dh;
+
+      // Frame (dark trim, slightly proud of cabin wall)
+      ctx.fillStyle = '#1a0c05';
+      ctx.fillRect(dx - 3, dy - 2, dw + 6, dh + 2);
+      ctx.beginPath(); ctx.arc(cx, dy, dw / 2 + 3, Math.PI, 0); ctx.fill();
+
+      // Door body
+      ctx.fillStyle = '#5c3318';
+      ctx.fillRect(dx, dy, dw, dh);
+      ctx.beginPath(); ctx.arc(cx, dy, dw / 2, Math.PI, 0); ctx.fill();
+
+      // Two raised panels (inner shadow gives depth)
+      const panW = dw * 0.64, panH = dh * 0.27, panX = cx - panW / 2;
+      ctx.strokeStyle = '#1a0c05'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(panX,     dy + dh * 0.07,  panW, panH);
+      ctx.strokeStyle = 'rgba(255,160,80,0.12)'; ctx.lineWidth = 1;
+      ctx.strokeRect(panX + 2, dy + dh * 0.07 + 2, panW - 4, panH - 4);
+      ctx.strokeStyle = '#1a0c05'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(panX,     dy + dh * 0.43,  panW, panH);
+      ctx.strokeStyle = 'rgba(255,160,80,0.12)'; ctx.lineWidth = 1;
+      ctx.strokeRect(panX + 2, dy + dh * 0.43 + 2, panW - 4, panH - 4);
+
+      // Porch step
+      ctx.fillStyle = '#2c1808';
+      ctx.fillRect(cx - dw * 0.88, gy, dw * 1.76, S * 0.048);
+      ctx.fillStyle = 'rgba(205,222,238,0.65)';
+      ctx.fillRect(cx - dw * 0.88, gy, dw * 1.76, S * 0.009);
+
+      // Log pile — stacked end-on to the right of the cabin
+      const logR   = S * 0.027;
+      const lpCx   = cbx + cw + S * 0.02 + logR * 4;
+      const logRows = [
+        { cols: 4, xOff: 0      },
+        { cols: 3, xOff: logR   },
+        { cols: 2, xOff: logR * 2 },
+      ];
+      logRows.forEach(({ cols, xOff }, row) => {
+        for (let col = 0; col < cols; col++) {
+          const lx = lpCx - (cols - 1) * logR + col * logR * 2 + xOff * 0;
+          const ly = gy - logR * (2 * row + 1);
+          ctx.fillStyle = row === 1 ? '#4a2812' : '#3b2010';
+          ctx.beginPath(); ctx.arc(lx + (row * logR * 0.5), ly, logR, 0, TAU); ctx.fill();
+          ctx.strokeStyle = '#6b3c1e'; ctx.lineWidth = 0.8;
+          ctx.beginPath(); ctx.arc(lx + (row * logR * 0.5), ly, logR * 0.55, 0, TAU); ctx.stroke();
+          ctx.beginPath(); ctx.arc(lx + (row * logR * 0.5), ly, logR * 0.28, 0, TAU); ctx.stroke();
+        }
+      });
+      // Snow cap on top logs — row 2 arc centers are lpCx and lpCx + 2*logR
+      ctx.fillStyle = 'rgba(210,228,245,0.88)';
+      const topY = gy - logR * 5;
+      [lpCx, lpCx + logR * 2].forEach(lx => {
+        ctx.beginPath(); ctx.ellipse(lx, topY - logR * 0.8, logR * 0.92, logR * 0.30, 0, 0, TAU); ctx.fill();
+      });
+
+      // ── Timed events ──────────────────────────────────────────────────────
+      if (!this._ev) this._ev = { nextT: t + 3, active: null, start: 0, dir: 1 };
+      const ev = this._ev;
+      if (!ev.active && t >= ev.nextT) {
+        ev.active = ['deer','owl','rabbit'][Math.floor(Math.random() * 3)];
+        ev.start  = t;
+        ev.dir    = Math.random() < 0.5 ? 1 : -1;
+        ev.nextT  = t + 10 + Math.random() * 8;
+      }
+
+      if (ev.active) {
+        const et = t - ev.start;
+        ctx.save();
+
+        // ── DEER ────────────────────────────────────────────────────────────
+        if (ev.active === 'deer') {
+          const dur = 11;
+          if (et > dur) { ev.active = null; } else {
+            const p  = et / dur;
+            const ps = 0.40, pe = 0.58;
+            const xp = p < ps ? p / ps * 0.5 : p < pe ? 0.5 : 0.5 + (p - pe) / (1 - pe) * 0.5;
+            const startX  = ev.dir > 0 ? -S * 0.15 : W + S * 0.15;
+            const endX    = ev.dir > 0 ? W + S * 0.15 : -S * 0.15;
+            const dx      = startX + (endX - startX) * xp;
+            const sz      = S * 0.13;
+            const pausing = p >= ps && p < pe;
+            const lookUp  = pausing && (et - ps * dur) > 0.7;
+
+            ctx.globalAlpha = p < 0.07 ? p / 0.07 : p > 0.93 ? (1 - p) / 0.07 : 1;
+            ctx.fillStyle = '#150d05'; ctx.strokeStyle = '#150d05';
+
+            ctx.save();
+            ctx.translate(dx, gy);
+            if (ev.dir < 0) ctx.scale(-1, 1);
+
+            // Legs — two pairs, swinging alternately
+            const swing = pausing ? 0 : Math.sin(et * 5.2) * sz * 0.10;
+            ctx.lineWidth = sz * 0.09; ctx.lineCap = 'round';
+            [[-sz*0.28, -sz*0.12], [sz*0.10, sz*0.26]].forEach(([x1, x2]) => {
+              ctx.beginPath(); ctx.moveTo(x1, -sz*0.16); ctx.lineTo(x1 + swing,  0); ctx.stroke();
+              ctx.beginPath(); ctx.moveTo(x2, -sz*0.16); ctx.lineTo(x2 - swing,  0); ctx.stroke();
+            });
+
+            // Body
+            ctx.beginPath(); ctx.ellipse(0, -sz*0.40, sz*0.52, sz*0.22, -0.08, 0, TAU); ctx.fill();
+
+            // Neck + head
+            const na = lookUp ? -1.25 : -0.72;
+            const nx = sz * 0.36, ny = -sz * 0.50;
+            const hx = nx + Math.cos(na) * sz * 0.28;
+            const hy = ny + Math.sin(na) * sz * 0.28;
+            ctx.lineWidth = sz * 0.11;
+            ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(hx, hy); ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(hx, hy, sz*0.115, sz*0.09, lookUp ? -0.55 : 0.18, 0, TAU); ctx.fill();
+
+            // Antlers (two simple forked beams)
+            ctx.lineWidth = sz * 0.038; ctx.lineCap = 'round';
+            const ax = hx + sz*0.03, ay = hy - sz*0.09;
+            ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax-sz*0.05, ay-sz*0.18); ctx.lineTo(ax-sz*0.12, ay-sz*0.26); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(ax-sz*0.03, ay-sz*0.12); ctx.lineTo(ax+sz*0.05, ay-sz*0.21); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(ax-sz*0.04, ay); ctx.lineTo(ax-sz*0.04, ay-sz*0.13); ctx.lineTo(ax-sz*0.10, ay-sz*0.20); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(ax-sz*0.04, ay-sz*0.08); ctx.lineTo(ax+sz*0.03, ay-sz*0.16); ctx.stroke();
+
+            ctx.restore();
+          }
+        }
+
+        // ── OWL ─────────────────────────────────────────────────────────────
+        else if (ev.active === 'owl') {
+          const dur = 14;
+          if (et > dur) { ev.active = null; } else {
+            const p      = et / dur;
+            const sz     = S * 0.065;
+            const treeX  = cx - S * 0.72;
+            const treeTopY = gy - S * 0.65;
+            const flyIn  = Math.min(1, et / 1.5);
+            const flyOut = p > 0.72 ? (p - 0.72) / 0.28 : 0;
+            const owlX   = treeX + flyOut * (W - treeX + sz * 2);
+            const owlY   = treeTopY - sz * 0.5 - (1 - flyIn) * H * 0.20;
+            const edgeFade = owlX > W * 0.9 ? 1 - (owlX - W * 0.9) / (sz * 2) : 1;
+
+            ctx.globalAlpha = Math.min(flyIn, edgeFade);
+            ctx.fillStyle = '#150d05'; ctx.strokeStyle = '#150d05';
+
+            // Body
+            ctx.beginPath(); ctx.ellipse(owlX, owlY + sz*0.28, sz*0.36, sz*0.50, 0, 0, TAU); ctx.fill();
+
+            // Head (rotates)
+            ctx.save();
+            ctx.translate(owlX, owlY - sz*0.14);
+            ctx.rotate(Math.sin(et * 1.1) * 0.42);
+            ctx.beginPath(); ctx.arc(0, 0, sz*0.32, 0, TAU); ctx.fill();
+            // Ear tufts
+            [[- sz*0.15, sz*0.07], [sz*0.15, -sz*0.07]].forEach(([ox, tip]) => {
+              ctx.beginPath();
+              ctx.moveTo(ox, -sz*0.26); ctx.lineTo(ox + tip, -sz*0.46); ctx.lineTo(ox * 0.45, -sz*0.30);
+              ctx.closePath(); ctx.fill();
+            });
+            // Eyes
+            ctx.fillStyle = 'rgba(255,215,130,0.95)';
+            [-sz*0.11, sz*0.11].forEach(ex => {
+              ctx.beginPath(); ctx.arc(ex, 0, sz*0.09, 0, TAU); ctx.fill();
+            });
+            ctx.fillStyle = '#0e0808';
+            [-sz*0.11, sz*0.11].forEach(ex => {
+              ctx.beginPath(); ctx.arc(ex, 0, sz*0.048, 0, TAU); ctx.fill();
+            });
+            ctx.restore();
+
+            // Talons
+            ctx.lineWidth = sz * 0.07; ctx.lineCap = 'round';
+            [[-sz*0.10, -sz*0.24], [-sz*0.10, -sz*0.13], [sz*0.10, sz*0.24], [sz*0.10, sz*0.13]].forEach(([bx, tx]) => {
+              ctx.beginPath(); ctx.moveTo(owlX + bx, owlY + sz*0.78); ctx.lineTo(owlX + tx, owlY + sz*0.88); ctx.stroke();
+            });
+          }
+        }
+
+        // ── RABBIT ──────────────────────────────────────────────────────────
+        else if (ev.active === 'rabbit') {
+          const dur = 6;
+          if (et > dur) { ev.active = null; } else {
+            const p      = et / dur;
+            const startX = ev.dir > 0 ? -S * 0.08 : W + S * 0.08;
+            const endX   = ev.dir > 0 ? W + S * 0.08 : -S * 0.08;
+            const sz     = S * 0.055;
+            const rx     = startX + (endX - startX) * p;
+            const hopAng = et * 5.5;
+            const inAir  = Math.abs(Math.sin(hopAng)) > 0.1;
+            const ry     = gy - Math.abs(Math.sin(hopAng)) * sz * 1.05;
+
+            ctx.globalAlpha = p < 0.08 ? p / 0.08 : p > 0.92 ? (1 - p) / 0.08 : 1;
+
+            ctx.save();
+            ctx.translate(rx, ry);
+            ctx.scale(ev.dir * (inAir ? 1.0 : 1.26), inAir ? 1.0 : 0.74);
+
+            ctx.fillStyle = '#cde0f0';
+            ctx.beginPath(); ctx.ellipse(0, 0, sz*0.50, sz*0.34, 0.12, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(sz*0.38, -sz*0.16, sz*0.25, sz*0.21, -0.18, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(sz*0.28, -sz*0.50, sz*0.07, sz*0.22, -0.12, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(sz*0.43, -sz*0.52, sz*0.07, sz*0.22,  0.14, 0, TAU); ctx.fill();
+            ctx.fillStyle = '#1a0808';
+            ctx.beginPath(); ctx.arc(sz*0.50, -sz*0.20, sz*0.055, 0, TAU); ctx.fill();
+            ctx.fillStyle = '#e8f2ff';
+            ctx.beginPath(); ctx.arc(-sz*0.48, sz*0.05, sz*0.13, 0, TAU); ctx.fill();
+
+            ctx.restore();
+          }
+        }
+
+        ctx.restore();
+      }
+
     }
   },
 
@@ -868,8 +1145,10 @@ class Momentarium {
 
   buildParticles(fromShake) {
     const { W, H } = this;
-    const type = SCENES[this.sceneIdx].particleType;
-    this.particles = Array.from({ length: CFG.particleCount }, () => {
+    const scene = SCENES[this.sceneIdx];
+    const type  = scene.particleType;
+    const count = scene.particleCount ?? CFG.particleCount;
+    this.particles = Array.from({ length: count }, () => {
       const p = new Particle(type, W, H);
       if (fromShake) p.kick();
       return p;
