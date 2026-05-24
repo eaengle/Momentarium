@@ -743,40 +743,39 @@ const SCENES = [
             const bob = pausing ? 0 : Math.abs(Math.cos(wc)) * sz * 0.028;
             ctx.translate(0, -bob);
 
-            // Neck geometry
-            const na  = lookUp ? -1.34 : -0.87;
-            const nbx = sz * 0.26, nby = -sz * 0.62;
-            const nex = nbx + Math.cos(na) * sz * 0.30;
-            const ney = nby + Math.sin(na) * sz * 0.30;
+            // Neck — more upright and longer, base at front-top of body
+            const na  = lookUp ? -1.45 : -1.12;
+            const nbx = sz * 0.18, nby = -sz * 0.62;
+            const nex = nbx + Math.cos(na) * sz * 0.40;
+            const ney = nby + Math.sin(na) * sz * 0.40;
 
-            // 3-segment leg: angles from vertical (+ = forward), lengths in sz units
+            // 3-segment leg: angles from vertical (+ = forward), uniform width for clean look
             const deerLeg = (ox, oy, ua, ul, la, ll, col) => {
               const kx = ox + Math.sin(ua) * ul, ky = oy + Math.cos(ua) * ul;
               const fx = kx + Math.sin(la) * ll, fy = ky + Math.cos(la) * ll;
               ctx.strokeStyle = col; ctx.lineCap = 'round';
-              ctx.lineWidth = sz * 0.082;
+              ctx.lineWidth = sz * 0.090;
               ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(kx, ky); ctx.stroke();
-              ctx.lineWidth = sz * 0.067;
+              ctx.lineWidth = sz * 0.080;
               ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
-              ctx.lineWidth = sz * 0.058;
+              ctx.lineWidth = sz * 0.075;
               ctx.beginPath(); ctx.moveTo(fx, fy);
-              ctx.lineTo(fx + Math.sin(la + 0.16) * sz * 0.046, fy + Math.cos(la + 0.16) * sz * 0.046);
+              ctx.lineTo(fx + Math.sin(la + 0.10) * sz * 0.040, fy + Math.cos(la + 0.10) * sz * 0.040);
               ctx.stroke();
             };
 
-            // All four legs drawn before the body fill so the body edge
-            // acts as a natural clip — legs emerge cleanly from the belly.
+            // All four legs drawn before the body fill
             const legC = '#1c0f07';
-            deerLeg( sz*0.24, -sz*0.36,  0.06 - sw*0.22,  sz*0.18,  0.04 - sw*0.18, sz*0.18, legC); // far front
-            deerLeg(-sz*0.50, -sz*0.36, -0.09 + sw*0.18,  sz*0.17,  0.16 + sw*0.18, sz*0.18, legC); // far back
-            deerLeg( sz*0.32, -sz*0.36,  0.06 + sw*0.22,  sz*0.18,  0.04 + sw*0.18, sz*0.18, legC); // near front
-            deerLeg(-sz*0.42, -sz*0.36, -0.09 - sw*0.18,  sz*0.17,  0.16 - sw*0.18, sz*0.18, legC); // near back
+            deerLeg( sz*0.24, -sz*0.36,  0.04 - sw*0.18,  sz*0.18,  0.02 - sw*0.14, sz*0.18, legC); // far front
+            deerLeg(-sz*0.50, -sz*0.36, -0.06 + sw*0.16,  sz*0.17,  0.12 + sw*0.14, sz*0.18, legC); // far back
+            deerLeg( sz*0.32, -sz*0.36,  0.04 + sw*0.18,  sz*0.18,  0.02 + sw*0.14, sz*0.18, legC); // near front
+            deerLeg(-sz*0.42, -sz*0.36, -0.06 - sw*0.16,  sz*0.17,  0.12 - sw*0.14, sz*0.18, legC); // near back
 
-            // Rump / tail patch
+            // Rump patch
             ctx.fillStyle = 'rgba(200,186,162,0.75)';
             ctx.beginPath(); ctx.ellipse(-sz*0.44, -sz*0.46, sz*0.13, sz*0.10, 0.20, 0, TAU); ctx.fill();
 
-            // Body — rounded rectangle: flat top/bottom, small rounded corners
+            // Body — rounded rectangle
             const bT = -sz*0.63, bB = -sz*0.36;
             const bF =  sz*0.32, bK = -sz*0.50;
             const cr  =  sz*0.08;
@@ -793,44 +792,48 @@ const SCENES = [
             ctx.quadraticCurveTo(bF, bT, bF - cr, bT);
             ctx.closePath(); ctx.fill();
 
+            // Tail — small rounded bump at back-top of body
+            ctx.fillStyle = 'rgba(210,198,175,0.80)';
+            ctx.beginPath(); ctx.ellipse(bK - sz*0.02, bT - sz*0.04, sz*0.07, sz*0.055, -0.5, 0, TAU); ctx.fill();
+
             // Neck
-            ctx.strokeStyle = '#1c0f07'; ctx.lineWidth = sz * 0.16; ctx.lineCap = 'round';
+            ctx.strokeStyle = '#1c0f07'; ctx.lineWidth = sz * 0.18; ctx.lineCap = 'round';
             ctx.beginPath(); ctx.moveTo(nbx, nby); ctx.lineTo(nex, ney); ctx.stroke();
 
-            // Head in rotated coordinate space — headA is shallower than na so muzzle faces forward
-            const headA = lookUp ? -0.52 : -0.26;
+            // Head — bigger, taller skull + rounded muzzle
+            const headA = lookUp ? -0.45 : -0.15;
             ctx.save();
             ctx.translate(nex, ney);
             ctx.rotate(headA);
 
             ctx.fillStyle = '#1c0f07';
-            ctx.beginPath(); ctx.ellipse(sz*0.05, 0, sz*0.130, sz*0.088, 0, 0, TAU); ctx.fill(); // skull
-            ctx.beginPath(); ctx.ellipse(sz*0.22, 0, sz*0.108, sz*0.068, 0.1, 0, TAU); ctx.fill(); // muzzle
+            ctx.beginPath(); ctx.ellipse(sz*0.02, 0, sz*0.145, sz*0.125, 0, 0, TAU); ctx.fill(); // skull (taller)
+            ctx.beginPath(); ctx.ellipse(sz*0.20, sz*0.04, sz*0.095, sz*0.080, 0.12, 0, TAU); ctx.fill(); // muzzle
 
-            // Ear
+            // Ears — large, prominent, fan out from crown
             ctx.save();
-            ctx.translate(-sz*0.02, -sz*0.080);
-            ctx.rotate(-0.30);
+            ctx.translate(-sz*0.04, -sz*0.110);
+            ctx.rotate(-0.25);
             ctx.fillStyle = '#1c0f07';
-            ctx.beginPath(); ctx.ellipse(0, -sz*0.085, sz*0.052, sz*0.078, 0, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(0, 0, sz*0.075, sz*0.110, 0, 0, TAU); ctx.fill();
             ctx.fillStyle = '#2b1a0b';
-            ctx.beginPath(); ctx.ellipse(0, -sz*0.085, sz*0.025, sz*0.044, 0, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(0, 0, sz*0.038, sz*0.068, 0, 0, TAU); ctx.fill();
             ctx.restore();
 
             // Eye — warm amber iris
             ctx.fillStyle = 'rgba(162,112,42,0.86)';
-            ctx.beginPath(); ctx.arc(sz*0.03, -sz*0.048, sz*0.026, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.arc(sz*0.06, -sz*0.040, sz*0.028, 0, TAU); ctx.fill();
             ctx.fillStyle = '#070403';
-            ctx.beginPath(); ctx.arc(sz*0.03, -sz*0.048, sz*0.014, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.arc(sz*0.06, -sz*0.040, sz*0.015, 0, TAU); ctx.fill();
 
             ctx.restore(); // head transform
 
-            // Cold breath while pausing (appears after brief delay)
+            // Cold breath while pausing
             if (pausing) {
               const bAge  = et - ps * dur;
               const bFade = Math.min(1, bAge / 0.55);
-              const mox   = nex + Math.cos(headA) * sz * 0.34;
-              const moy   = ney + Math.sin(headA) * sz * 0.34;
+              const mox   = nex + Math.cos(headA) * sz * 0.32;
+              const moy   = ney + Math.sin(headA) * sz * 0.32;
               for (let i = 0; i < 3; i++) {
                 const bp = ((t * 0.62 + i * 0.42) % 1.5) * bFade;
                 ctx.globalAlpha = fade * (1 - bp / 1.5) * 0.28 * bFade;
@@ -846,31 +849,31 @@ const SCENES = [
               ctx.globalAlpha = fade;
             }
 
-            // Antlers — far beam darker for depth
+            // Antlers — two clean forking beams, far slightly darker
             ctx.lineCap = 'round';
             const upA = headA - Math.PI * 0.5;
-            const abx = nex + Math.cos(upA) * sz * 0.080 + Math.cos(headA) * sz * 0.016;
-            const aby = ney + Math.sin(upA) * sz * 0.080 + Math.sin(headA) * sz * 0.016;
+            const abx = nex + Math.cos(upA) * sz * 0.110 + Math.cos(headA) * sz * 0.010;
+            const aby = ney + Math.sin(upA) * sz * 0.110 + Math.sin(headA) * sz * 0.010;
 
             // Far antler
             ctx.strokeStyle = '#0e0804';
-            ctx.lineWidth = sz * 0.028;
-            const fa2x = abx - sz*0.03, fa2y = aby - sz*0.23;
+            ctx.lineWidth = sz * 0.030;
+            const fa2x = abx - sz*0.04, fa2y = aby - sz*0.26;
             ctx.beginPath(); ctx.moveTo(abx - sz*0.04, aby); ctx.lineTo(fa2x, fa2y); ctx.stroke();
-            ctx.lineWidth = sz * 0.017;
-            ctx.beginPath(); ctx.moveTo(abx - sz*0.040, aby - sz*0.07); ctx.lineTo(abx + sz*0.048, aby - sz*0.17); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(fa2x, fa2y); ctx.lineTo(fa2x - sz*0.052, fa2y - sz*0.09); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(fa2x, fa2y); ctx.lineTo(fa2x + sz*0.036, fa2y - sz*0.10); ctx.stroke();
+            ctx.lineWidth = sz * 0.018;
+            ctx.beginPath(); ctx.moveTo(abx - sz*0.04, aby - sz*0.08); ctx.lineTo(abx + sz*0.06, aby - sz*0.19); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(fa2x, fa2y); ctx.lineTo(fa2x - sz*0.06, fa2y - sz*0.10); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(fa2x, fa2y); ctx.lineTo(fa2x + sz*0.04, fa2y - sz*0.11); ctx.stroke();
 
             // Near antler
             ctx.strokeStyle = '#1b1008';
-            ctx.lineWidth = sz * 0.034;
-            const na2x = abx - sz*0.01, na2y = aby - sz*0.25;
-            ctx.beginPath(); ctx.moveTo(abx, aby); ctx.lineTo(na2x, na2y); ctx.stroke();
-            ctx.lineWidth = sz * 0.020;
-            ctx.beginPath(); ctx.moveTo(abx + sz*0.005, aby - sz*0.06); ctx.lineTo(abx + sz*0.092, aby - sz*0.18); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(na2x + sz*0.008, na2y + sz*0.05); ctx.lineTo(na2x - sz*0.062, na2y - sz*0.09); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(na2x + sz*0.008, na2y + sz*0.05); ctx.lineTo(na2x + sz*0.054, na2y - sz*0.11); ctx.stroke();
+            ctx.lineWidth = sz * 0.036;
+            const ant2x = abx, ant2y = aby - sz*0.28;
+            ctx.beginPath(); ctx.moveTo(abx, aby); ctx.lineTo(ant2x, ant2y); ctx.stroke();
+            ctx.lineWidth = sz * 0.022;
+            ctx.beginPath(); ctx.moveTo(abx + sz*0.01, aby - sz*0.08); ctx.lineTo(abx + sz*0.10, aby - sz*0.20); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(ant2x + sz*0.01, ant2y + sz*0.06); ctx.lineTo(ant2x - sz*0.07, ant2y - sz*0.10); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(ant2x + sz*0.01, ant2y + sz*0.06); ctx.lineTo(ant2x + sz*0.06, ant2y - sz*0.12); ctx.stroke();
 
             ctx.restore();
           }
