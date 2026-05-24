@@ -462,6 +462,162 @@ const SCENES = [
         ctx.beginPath(); ctx.ellipse(lx, topY - logR * 0.8, logR * 0.92, logR * 0.30, 0, 0, TAU); ctx.fill();
       });
 
+      // Foreground: frozen pond, soft drifts, and snow-dusted brush
+      const pondCx = cx - S * 0.46;
+      const pondCy = gy + Math.min(S * 0.28, H * 0.105);
+      const pondW  = S * 0.82;
+      const pondH  = S * 0.18;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(pondCx, pondCy, pondW * 0.5, pondH * 0.5, -0.04, 0, TAU);
+      ctx.clip();
+      const ice = ctx.createLinearGradient(pondCx, pondCy - pondH * 0.5, pondCx, pondCy + pondH * 0.5);
+      ice.addColorStop(0, '#b8d4e8');
+      ice.addColorStop(0.46, '#7197b8');
+      ice.addColorStop(1, '#d8ebf4');
+      ctx.fillStyle = ice;
+      ctx.fillRect(pondCx - pondW, pondCy - pondH, pondW * 2, pondH * 2);
+      ctx.globalAlpha = 0.32;
+      ctx.strokeStyle = '#effaff'; ctx.lineWidth = 1.4;
+      for (let i = 0; i < 5; i++) {
+        const yy = pondCy - pondH * 0.26 + i * pondH * 0.13;
+        ctx.beginPath();
+        ctx.moveTo(pondCx - pondW * 0.38, yy);
+        ctx.bezierCurveTo(pondCx - pondW * 0.12, yy - pondH * 0.08, pondCx + pondW * 0.10, yy + pondH * 0.08, pondCx + pondW * 0.38, yy);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = '#35536f'; ctx.lineWidth = 0.9;
+      [
+        [[-0.22, -0.06], [-0.10, -0.01], [-0.04, -0.10]],
+        [[0.08, 0.08], [0.18, 0.02], [0.30, 0.09]],
+        [[-0.05, 0.18], [0.03, 0.11], [0.10, 0.16]],
+      ].forEach(crack => {
+        ctx.beginPath();
+        crack.forEach(([px, py], i) => {
+          const x = pondCx + px * pondW;
+          const y = pondCy + py * pondH;
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      });
+      ctx.restore();
+
+      ctx.fillStyle = 'rgba(228,240,250,0.92)';
+      ctx.beginPath();
+      ctx.ellipse(pondCx - pondW * 0.18, pondCy - pondH * 0.48, pondW * 0.44, pondH * 0.16, -0.06, 0, TAU);
+      ctx.ellipse(pondCx + pondW * 0.22, pondCy + pondH * 0.48, pondW * 0.36, pondH * 0.14, 0.03, 0, TAU);
+      ctx.fill();
+
+      const drift = (x, y, w, h, a) => {
+        ctx.fillStyle = `rgba(235,244,252,${a})`;
+        ctx.beginPath();
+        ctx.moveTo(x - w * 0.5, y + h * 0.42);
+        ctx.bezierCurveTo(x - w * 0.34, y - h * 0.22, x - w * 0.10, y - h * 0.45, x + w * 0.08, y - h * 0.16);
+        ctx.bezierCurveTo(x + w * 0.25, y - h * 0.50, x + w * 0.46, y - h * 0.20, x + w * 0.5, y + h * 0.42);
+        ctx.closePath(); ctx.fill();
+      };
+      drift(cx + S * 0.42, gy + S * 0.13, S * 0.58, S * 0.095, 0.86);
+      drift(cx - S * 0.05, gy + S * 0.20, S * 0.70, S * 0.11, 0.74);
+      drift(cx + S * 0.78, gy + S * 0.29, S * 0.62, S * 0.12, 0.70);
+
+      const twigThicket = (bx, by, sc) => {
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.strokeStyle = '#26301d';
+        ctx.lineWidth = Math.max(1, S * 0.0048 * sc);
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 13; i++) {
+          const spread = (i - 6) * S * 0.014 * sc;
+          const h = S * (0.045 + (i % 4) * 0.014) * sc;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.quadraticCurveTo(spread * 0.35, -h * 0.55, spread, -h);
+          ctx.stroke();
+
+          if (i % 3 !== 1) {
+            ctx.strokeStyle = '#334024';
+            ctx.lineWidth = Math.max(0.7, S * 0.0026 * sc);
+            ctx.beginPath();
+            ctx.moveTo(spread * 0.46, -h * 0.48);
+            ctx.lineTo(spread * 0.46 + (i % 2 ? -1 : 1) * S * 0.020 * sc, -h * 0.66);
+            ctx.stroke();
+            ctx.strokeStyle = '#26301d';
+            ctx.lineWidth = Math.max(1, S * 0.0048 * sc);
+          }
+        }
+        ctx.fillStyle = 'rgba(232,242,250,0.90)';
+        [
+          [-0.062, -0.043, 0.020, -0.18],
+          [-0.022, -0.070, 0.025,  0.10],
+          [ 0.024, -0.055, 0.022, -0.08],
+          [ 0.066, -0.040, 0.018,  0.18],
+        ].forEach(([ox, oy, r, rot]) => {
+          ctx.beginPath();
+          ctx.ellipse(S * ox * sc, S * oy * sc, S * r * sc, S * r * 0.42 * sc, rot, 0, TAU);
+          ctx.fill();
+        });
+        ctx.restore();
+      };
+
+      const snowShrub = (bx, by, sc) => {
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.fillStyle = '#1f3322';
+        [
+          [-0.055, -0.018, 0.055, 0.050],
+          [ 0.000, -0.042, 0.070, 0.065],
+          [ 0.062, -0.018, 0.052, 0.048],
+          [-0.010,  0.010, 0.088, 0.046],
+        ].forEach(([ox, oy, rw, rh]) => {
+          ctx.beginPath();
+          ctx.ellipse(S * ox * sc, S * oy * sc, S * rw * sc, S * rh * sc, 0, Math.PI, 0);
+          ctx.lineTo(S * (ox + rw) * sc, S * 0.030 * sc);
+          ctx.lineTo(S * (ox - rw) * sc, S * 0.030 * sc);
+          ctx.closePath(); ctx.fill();
+        });
+        ctx.fillStyle = 'rgba(232,243,252,0.95)';
+        [
+          [-0.054, -0.053, 0.052, 0.016],
+          [ 0.004, -0.084, 0.068, 0.020],
+          [ 0.061, -0.052, 0.050, 0.015],
+          [-0.005, -0.020, 0.092, 0.018],
+        ].forEach(([ox, oy, rw, rh]) => {
+          ctx.beginPath();
+          ctx.ellipse(S * ox * sc, S * oy * sc, S * rw * sc, S * rh * sc, 0, 0, TAU);
+          ctx.fill();
+        });
+        ctx.restore();
+      };
+
+      const pondReeds = (bx, by, sc) => {
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.strokeStyle = '#354026';
+        ctx.lineWidth = Math.max(0.8, S * 0.0028 * sc);
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 10; i++) {
+          const ox = (i - 4.5) * S * 0.012 * sc;
+          const h = S * (0.050 + (i % 4) * 0.013) * sc;
+          const lean = Math.sin(i * 1.7) * S * 0.018 * sc;
+          ctx.beginPath();
+          ctx.moveTo(ox, 0);
+          ctx.quadraticCurveTo(ox + lean * 0.35, -h * 0.55, ox + lean, -h);
+          ctx.stroke();
+        }
+        ctx.fillStyle = 'rgba(229,241,250,0.88)';
+        ctx.beginPath();
+        ctx.ellipse(0, -S * 0.008 * sc, S * 0.085 * sc, S * 0.014 * sc, -0.04, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      };
+
+      twigThicket(cx - S * 0.92, gy + S * 0.16, 1.15);
+      snowShrub(cx + S * 1.00, gy + S * 0.13, 0.98);
+      pondReeds(pondCx + pondW * 0.42, pondCy - pondH * 0.30, 0.92);
+      twigThicket(cx + S * 0.58, gy + S * 0.24, 0.72);
+
       // ── Timed events ──────────────────────────────────────────────────────
       const EV_NAMES = ['deer','owl','rabbit','shootingStar','curtainShift','smokeBurst'];
       if (!this._ev) {
