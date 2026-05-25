@@ -60,6 +60,16 @@ async function preloadScenes(scenes) {
   }));
 }
 
+const deerSprites = {};
+async function preloadDeerSprites() {
+  const base = 'assets/scenes/tiny-cabin/deer/';
+  await Promise.all(
+    ['walk-0', 'walk-1', 'walk-2', 'walk-3', 'pause'].map(async n => {
+      deerSprites[n] = await loadImage(`${base}${n}.png`);
+    })
+  );
+}
+
 // ─── IMAGE COVER HELPER ───────────────────────────────────────────────────────
 function drawImageCover(ctx, img, W, H) {
   if (!img) return;
@@ -483,7 +493,7 @@ class CabinEventsOverlay {
     const L = W > H;
 
     // Anchor coords tuned to the painting (portrait vs landscape)
-    this.gy        = H * (L ? 0.700 : 0.720);
+    this.gy        = H * (L ? 0.808 : 0.800);
     this.chx       = W * (L ? 0.539 : 0.563);
     this.chy       = H * (L ? 0.457 : 0.550);
     this.roofPeakX = W * (L ? 0.500 : 0.550);
@@ -873,129 +883,58 @@ class CabinEventsOverlay {
     } else if (ev.active === 'deer') {
       const dur = 11;
       if (et > dur) { ev.active = null; } else {
-        const p  = et / dur;
-        const ps = 0.40, pe = 0.58;
-        const xp = p < ps ? p / ps * 0.5 : p < pe ? 0.5 : 0.5 + (p - pe) / (1 - pe) * 0.5;
-        const startX = ev.dir > 0 ? -S * 0.15 : W + S * 0.15;
-        const endX   = ev.dir > 0 ? W + S * 0.15 : -S * 0.15;
-        const dx     = startX + (endX - startX) * xp;
-        const sz     = S * 0.14;
+        const p       = et / dur;
+        const ps      = 0.40, pe = 0.58;
+        const xp      = p < ps ? p / ps * 0.5 : p < pe ? 0.5 : 0.5 + (p - pe) / (1 - pe) * 0.5;
+        const sz      = S * 0.28;
+        const margin  = sz * 1.5;
+        const startX  = ev.dir > 0 ? -margin : W + margin;
+        const endX    = ev.dir > 0 ? W + margin : -margin;
+        const dx      = startX + (endX - startX) * xp;
         const pausing = p >= ps && p < pe;
-        const lookUp  = pausing && (et - ps * dur) > 0.7;
         const fa      = p < 0.07 ? p / 0.07 : p > 0.93 ? (1 - p) / 0.07 : 1;
 
-        ctx.globalAlpha = fa;
-        ctx.save();
-        ctx.translate(dx, gy);
-        if (ev.dir < 0) ctx.scale(-1, 1);
+        const frameIdx = Math.floor(et * (4.6 / (Math.PI * 2)) * 4) % 4;
+        const frame    = pausing ? deerSprites['pause'] : deerSprites[`walk-${frameIdx}`];
+        if (frame) {
+          // drawH tuned so sprite deer ≈ same apparent height as procedural deer
+          const drawH  = sz * 1.2;
+          const drawW  = drawH * (frame.naturalWidth / frame.naturalHeight);
+          // foot anchor within sprite — tune FOOT_X/Y if positioning looks off
+          const FOOT_X = 0.50, FOOT_Y = 0.92;
+          const wc  = pausing ? 0 : et * 4.6;
+          const bob = pausing ? 0 : Math.abs(Math.cos(wc)) * sz * 0.028;
 
-        const wc  = pausing ? 0 : et * 4.6;
-        const sw  = Math.sin(wc);
-        const bob = pausing ? 0 : Math.abs(Math.cos(wc)) * sz * 0.028;
-        ctx.translate(0, -bob);
-
-        const na  = lookUp ? -1.45 : -1.12;
-        const nbx = sz * .18, nby = -sz * .62;
-        const nex = nbx + Math.cos(na) * sz * .40;
-        const ney = nby + Math.sin(na) * sz * .40;
-
-        const deerLeg = (ox, oy, ua, ul, la, ll, col) => {
-          const kx = ox + Math.sin(ua) * ul, ky = oy + Math.cos(ua) * ul;
-          const fx = kx + Math.sin(la) * ll, fy = ky + Math.cos(la) * ll;
-          ctx.strokeStyle = col; ctx.lineCap = 'round';
-          ctx.lineWidth = sz * .090; ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(kx, ky); ctx.stroke();
-          ctx.lineWidth = sz * .080; ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
-          ctx.lineWidth = sz * .075;
-          ctx.beginPath();
-          ctx.moveTo(fx, fy);
-          ctx.lineTo(fx + Math.sin(la + .10) * sz * .040, fy + Math.cos(la + .10) * sz * .040);
-          ctx.stroke();
-        };
-
-        const lc = '#1c0f07';
-        deerLeg( sz*.24,-sz*.36,  .04-sw*.18, sz*.18,  .02-sw*.14, sz*.18, lc);
-        deerLeg(-sz*.50,-sz*.36, -.06+sw*.16, sz*.17,  .12+sw*.14, sz*.18, lc);
-        deerLeg( sz*.32,-sz*.36,  .04+sw*.18, sz*.18,  .02+sw*.14, sz*.18, lc);
-        deerLeg(-sz*.42,-sz*.36, -.06-sw*.16, sz*.17,  .12-sw*.14, sz*.18, lc);
-
-        ctx.fillStyle = 'rgba(200,186,162,0.75)';
-        ctx.beginPath(); ctx.ellipse(-sz*.44,-sz*.46, sz*.13, sz*.10, .20, 0, TAU); ctx.fill();
-
-        const [bT,bB,bF,bK,cr] = [-sz*.63, -sz*.36, sz*.32, -sz*.50, sz*.08];
-        ctx.fillStyle = '#1c0f07';
-        ctx.beginPath();
-        ctx.moveTo(bF-cr,bT); ctx.lineTo(bK+cr,bT);
-        ctx.quadraticCurveTo(bK,bT, bK,bT+cr);
-        ctx.lineTo(bK,bB-cr); ctx.quadraticCurveTo(bK,bB, bK+cr,bB);
-        ctx.lineTo(bF-cr,bB); ctx.quadraticCurveTo(bF,bB, bF,bB-cr);
-        ctx.lineTo(bF,bT+cr); ctx.quadraticCurveTo(bF,bT, bF-cr,bT);
-        ctx.closePath(); ctx.fill();
-
-        ctx.fillStyle = 'rgba(210,198,175,0.80)';
-        ctx.beginPath(); ctx.ellipse(bK-sz*.02, bT-sz*.04, sz*.07, sz*.055, -.5, 0, TAU); ctx.fill();
-
-        ctx.strokeStyle = '#1c0f07'; ctx.lineWidth = sz*.18; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(nbx, nby); ctx.lineTo(nex, ney); ctx.stroke();
-
-        const headA = lookUp ? -0.45 : -0.15;
-        ctx.save();
-        ctx.translate(nex, ney); ctx.rotate(headA);
-        ctx.fillStyle = '#1c0f07';
-        ctx.beginPath(); ctx.ellipse(sz*.02, 0, sz*.145, sz*.125, 0, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(sz*.20, sz*.04, sz*.095, sz*.080, .12, 0, TAU); ctx.fill();
-        ctx.save();
-        ctx.translate(-sz*.04, -sz*.110); ctx.rotate(-0.25);
-        ctx.fillStyle = '#1c0f07';
-        ctx.beginPath(); ctx.ellipse(0, 0, sz*.075, sz*.110, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#2b1a0b';
-        ctx.beginPath(); ctx.ellipse(0, 0, sz*.038, sz*.068, 0, 0, TAU); ctx.fill();
-        ctx.restore();
-        ctx.fillStyle = 'rgba(162,112,42,0.86)';
-        ctx.beginPath(); ctx.arc(sz*.06, -sz*.040, sz*.028, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#070403';
-        ctx.beginPath(); ctx.arc(sz*.06, -sz*.040, sz*.015, 0, TAU); ctx.fill();
-        ctx.restore();
-
-        if (pausing) {
-          const bAge  = et - ps * dur;
-          const bFade = Math.min(1, bAge / 0.55);
-          const mox   = nex + Math.cos(headA) * sz * .32;
-          const moy   = ney + Math.sin(headA) * sz * .32;
-          for (let i = 0; i < 3; i++) {
-            const bp = ((t * .62 + i * .42) % 1.5) * bFade;
-            ctx.globalAlpha = fa * (1 - bp / 1.5) * 0.28 * bFade;
-            ctx.fillStyle = '#cce4f3';
-            ctx.beginPath();
-            ctx.arc(
-              mox + Math.cos(headA - .06) * bp * sz * .25,
-              moy + Math.sin(headA - .06) * bp * sz * .25,
-              sz * .025 + bp * sz * .050, 0, TAU
-            );
-            ctx.fill();
-          }
+          ctx.save();
           ctx.globalAlpha = fa;
+          ctx.translate(dx, gy);
+          if (ev.dir < 0) ctx.scale(-1, 1);
+          ctx.translate(0, -bob);
+          ctx.drawImage(frame, -drawW * FOOT_X, -drawH * FOOT_Y, drawW, drawH);
+
+          if (pausing) {
+            const bAge  = et - ps * dur;
+            const bFade = Math.min(1, bAge / 0.55);
+            // nose offset from foot anchor in sprite coords (pause frame, head raised)
+            const noseX = drawW * 0.12;
+            const noseY = -drawH * 0.79;
+            const breathAngle = -0.35;
+            for (let i = 0; i < 3; i++) {
+              const bp = ((t * .62 + i * .42) % 1.5) * bFade;
+              ctx.globalAlpha = fa * (1 - bp / 1.5) * 0.28 * bFade;
+              ctx.fillStyle = '#cce4f3';
+              ctx.beginPath();
+              ctx.arc(
+                noseX + Math.cos(breathAngle) * bp * sz * .25,
+                noseY + Math.sin(breathAngle) * bp * sz * .25,
+                sz * .025 + bp * sz * .050, 0, TAU
+              );
+              ctx.fill();
+            }
+          }
+
+          ctx.restore();
         }
-
-        const upA = headA - Math.PI * .5;
-        const abx = nex + Math.cos(upA) * sz * .110 + Math.cos(headA) * sz * .010;
-        const aby = ney + Math.sin(upA) * sz * .110 + Math.sin(headA) * sz * .010;
-        ctx.lineCap = 'round';
-        const [fa2x, fa2y] = [abx - sz*.04, aby - sz*.26];
-        ctx.strokeStyle = '#0e0804'; ctx.lineWidth = sz*.030;
-        ctx.beginPath(); ctx.moveTo(abx-sz*.04, aby); ctx.lineTo(fa2x, fa2y); ctx.stroke();
-        ctx.lineWidth = sz*.018;
-        ctx.beginPath(); ctx.moveTo(abx-sz*.04, aby-sz*.08); ctx.lineTo(abx+sz*.06, aby-sz*.19); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(fa2x, fa2y); ctx.lineTo(fa2x-sz*.06, fa2y-sz*.10); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(fa2x, fa2y); ctx.lineTo(fa2x+sz*.04, fa2y-sz*.11); ctx.stroke();
-        ctx.strokeStyle = '#1b1008'; ctx.lineWidth = sz*.036;
-        const [ant2x, ant2y] = [abx, aby - sz*.28];
-        ctx.beginPath(); ctx.moveTo(abx, aby); ctx.lineTo(ant2x, ant2y); ctx.stroke();
-        ctx.lineWidth = sz*.022;
-        ctx.beginPath(); ctx.moveTo(abx+sz*.01, aby-sz*.08); ctx.lineTo(abx+sz*.10, aby-sz*.20); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(ant2x+sz*.01, ant2y+sz*.06); ctx.lineTo(ant2x-sz*.07, ant2y-sz*.10); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(ant2x+sz*.01, ant2y+sz*.06); ctx.lineTo(ant2x+sz*.06, ant2y-sz*.12); ctx.stroke();
-
-        ctx.restore();
       }
 
     // ── OWL ────────────────────────────────────────────────────────────────────
@@ -1247,7 +1186,7 @@ class MomentariumApp {
     this._initInput();
     this._initShake();
 
-    preloadScenes(SCENES).then(() => {
+    Promise.all([preloadScenes(SCENES), preloadDeerSprites()]).then(() => {
       this._buildOverlays();
       requestAnimationFrame(t => this._loop(t));
     });
