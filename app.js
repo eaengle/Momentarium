@@ -8,7 +8,8 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const CFG = {
   transitionMs:    400,
   swipeThreshold:  45,
-  tapStirStrength: 4.5,
+  tapKickStrength: 6,
+  shakeThreshold:  13,
 };
 
 // ─── SCENE DEFINITIONS ────────────────────────────────────────────────────────
@@ -46,15 +47,16 @@ function loadImage(src) {
   });
 }
 
-function preloadScenes(scenes) {
-  return Promise.all(scenes.map(s => {
+async function preloadScenes(scenes) {
+  await Promise.all(scenes.map(async s => {
     if (typeof s.background === 'object') {
-      return Promise.all([
-        loadImage(s.background.portrait).then(img  => (s.imagePortrait  = img)),
-        loadImage(s.background.landscape).then(img => (s.imageLandscape = img)),
+      [s.imagePortrait, s.imageLandscape] = await Promise.all([
+        loadImage(s.background.portrait),
+        loadImage(s.background.landscape),
       ]);
+    } else {
+      s.image = await loadImage(s.background);
     }
-    return loadImage(s.background).then(img => (s.image = img));
   }));
 }
 
@@ -77,7 +79,7 @@ class SnowOverlay {
 
   init(W, H) {
     this.W = W; this.H = H;
-    this.particles = Array.from({ length: 130 }, () => this._spawn(true));
+    this.particles = Array.from({ length: 500 }, () => this._spawn(true));
   }
 
   _spawn(scatter) {
@@ -94,15 +96,23 @@ class SnowOverlay {
 
   stir(s) { this.stir_ = s; }
 
+  kick(strength) {
+    for (const p of this.particles) {
+      p.vx = clamp(p.vx + (Math.random() - 0.5) * strength, -8, 8);
+      p.vy = clamp(p.vy + Math.random() * strength * 0.25,   0, 8);
+    }
+  }
+
   update(dt, t) {
+    this.stir_ *= 0.93;
+    if (this.stir_ < 0.001) { this.stir_ = 0; return; }
     const T  = dt * 0.05;
     const st = this.stir_;
-    this.stir_ *= 0.93;
     for (const p of this.particles) {
       p.x  += (p.vx + Math.sin(t * 0.9 + p.ph) * 0.35) * T + (Math.random() - 0.5) * st * 0.25;
-      p.y  += (p.vy + (Math.random() - 0.5) * st * 0.3) * T;
+      p.y  += p.vy * T;
       p.vx  = clamp(p.vx + (Math.random() - 0.5) * 0.018, -1.5, 1.5);
-      p.vy  = Math.min(p.vy + 0.008, 2.5);
+      p.vy  = clamp(p.vy + 0.008, 0, 2.5);
       if (p.x < -6)          p.x = this.W + 6;
       if (p.x > this.W + 6)  p.x = -6;
       if (p.y > this.H * 0.94) Object.assign(p, this._spawn(false));
@@ -110,12 +120,23 @@ class SnowOverlay {
   }
 
   draw(ctx, W, H, t) {
-    ctx.save();
-    ctx.fillStyle = '#ffffff';
+    const vis = Math.min(1, this.stir_ / 8);
+    if (vis <= 0) return;
+    const buckets = [[], [], []];
     for (const p of this.particles) {
       const tw = 0.75 + 0.25 * Math.sin(t * 2.0 + p.ph);
-      ctx.globalAlpha = p.a * tw;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.sz, 0, TAU); ctx.fill();
+      const a  = p.a * tw * vis;
+      buckets[a > 0.66 ? 2 : a > 0.33 ? 1 : 0].push(p);
+    }
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    const alphas = [0.28, 0.58, 0.88];
+    for (let b = 0; b < 3; b++) {
+      if (!buckets[b].length) continue;
+      ctx.globalAlpha = alphas[b] * vis;
+      ctx.beginPath();
+      for (const p of buckets[b]) { ctx.moveTo(p.x + p.sz, p.y); ctx.arc(p.x, p.y, p.sz, 0, TAU); }
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -303,7 +324,7 @@ class SeaMistOverlay {
 }
 
 class BubblesOverlay {
-  constructor() { this.particles = []; }
+  constructor() { this.particles = []; this.stir_ = 0; }
 
   init(W, H) {
     this.W = W; this.H = H;
@@ -322,18 +343,22 @@ class BubblesOverlay {
     };
   }
 
-  stir(s) {
+  stir(s) { this.stir_ = s; }
+
+  kick(strength) {
     for (const p of this.particles) {
-      p.vx += (Math.random() - 0.5) * s * 0.4;
-      p.vy -= Math.random() * s * 0.25;
+      p.vx = clamp(p.vx + (Math.random() - 0.5) * strength, -5, 5);
+      p.vy = clamp(p.vy + (Math.random() - 0.5) * strength, -5, 5);
     }
   }
 
   update(dt, t) {
-    const T = dt * 0.05;
+    const T  = dt * 0.05;
+    const st = this.stir_;
+    this.stir_ *= 0.93;
     for (const p of this.particles) {
-      p.x += (p.vx + Math.sin(t * 0.7 + p.ph) * 0.18) * T;
-      p.y += p.vy * T;
+      p.x += (p.vx + Math.sin(t * 0.7 + p.ph) * 0.18 + (Math.random() - 0.5) * st * 0.15) * T;
+      p.y += (p.vy + (Math.random() - 0.5) * st * 0.20) * T;
       if (p.x < -10)          p.x = this.W + 10;
       if (p.x > this.W + 10)  p.x = -10;
       if (p.y < -20) Object.assign(p, this._spawn(false));
@@ -505,11 +530,14 @@ class MomentariumApp {
     this.pendingIdx = null;
     this.transT     = 0;
 
+    this.stormLevel = 0;
+
     this.lastTime  = null;
     this.startTime = performance.now();
 
     this._initResize();
     this._initInput();
+    this._initShake();
 
     preloadScenes(SCENES).then(() => {
       this._buildOverlays();
@@ -604,17 +632,64 @@ class MomentariumApp {
       }
     });
 
-    // Arrow keys for desktop navigation
+    // Arrow keys + shake simulation for desktop
     window.addEventListener('keydown', e => {
-      if (e.key === 'ArrowRight') this._go(this.activeIdx + 1);
-      if (e.key === 'ArrowLeft')  this._go(this.activeIdx - 1);
+      if (e.key === 'ArrowRight')              this._go(this.activeIdx + 1);
+      if (e.key === 'ArrowLeft')               this._go(this.activeIdx - 1);
+      if (e.key === 's' || e.key === 'S')      this.onShake();
     });
   }
 
   _stir() {
     const group = this.overlays[SCENES[this.activeIdx].id] || {};
     for (const o of Object.values(group)) {
-      if (o.stir) o.stir(CFG.tapStirStrength);
+      if (o.kick) o.kick(CFG.tapKickStrength);
+      else if (o.stir) o.stir(CFG.tapKickStrength);
+    }
+  }
+
+  onShake() {
+    this.stormLevel = 3.0;
+    const group = this.overlays[SCENES[this.activeIdx].id] || {};
+    for (const o of Object.values(group)) {
+      if (o.kick) o.kick(13);
+    }
+  }
+
+  _decayStorm(dt) {
+    if (this.stormLevel <= 0) return;
+    const decay = this.stormLevel > 1.5 ? 0.998 : 0.9975;
+    this.stormLevel = this.stormLevel * Math.pow(decay, dt / 16);
+    if (this.stormLevel < 0.005) { this.stormLevel = 0; return; }
+    const group = this.overlays[SCENES[this.activeIdx].id] || {};
+    for (const o of Object.values(group)) {
+      if (o.stir) o.stir(this.stormLevel * 5);
+    }
+  }
+
+  _initShake() {
+    let lastMag = 0, lastShakeMs = 0;
+    const handle = e => {
+      const a = e.accelerationIncludingGravity || e.acceleration;
+      if (!a) return;
+      const mag = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2);
+      const delta = Math.abs(mag - lastMag);
+      lastMag = mag;
+      const now = Date.now();
+      if (delta > CFG.shakeThreshold && now - lastShakeMs > 500) {
+        lastShakeMs = now;
+        this.onShake();
+      }
+    };
+    if (typeof DeviceMotionEvent !== 'undefined' &&
+        typeof DeviceMotionEvent.requestPermission === 'function') {
+      this.canvas.addEventListener('touchstart', () => {
+        DeviceMotionEvent.requestPermission()
+          .then(p => { if (p === 'granted') window.addEventListener('devicemotion', handle); })
+          .catch(() => {});
+      }, { once: true });
+    } else {
+      window.addEventListener('devicemotion', handle);
     }
   }
 
@@ -634,6 +709,7 @@ class MomentariumApp {
     const t = (now - this.startTime) * 0.001;
 
     this._updateTransition(now);
+    this._decayStorm(dt);
 
     const group = this.overlays[SCENES[this.activeIdx].id] || {};
     for (const o of Object.values(group)) {
