@@ -11,7 +11,7 @@ A snowy cabin scene with an aurora sky, mountain silhouettes, pine trees, warm w
 Tiny Cabin has the richest event system. Timed micro-events are selected automatically with recovery weighting so recently played events become less likely for a while:
 
 - `deer` - a deer crosses the snow and pauses briefly.
-- `owl` - an owl lands in the tree line, turns its head, then flies away.
+- `owl` - an owl swoops down into the tree line, perches with a different look, then flies away with separate flight graphics.
 - `rabbit` - a rabbit hops across the foreground.
 - `fox` - a fox trots across the snow.
 - `shootingStar` - a bright streak crosses the upper sky.

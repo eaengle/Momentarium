@@ -900,49 +900,245 @@ const SCENES = [
         else if (ev.active === 'owl') {
           const dur = 14;
           if (et > dur) { ev.active = null; } else {
-            const p      = et / dur;
-            const sz     = S * 0.065;
-            const treeX  = cx - S * 0.72;
+            const p        = et / dur;
+            const sz       = S * 0.070;
+            const treeX    = cx - S * 0.72;
             const treeTopY = gy - S * 0.65;
-            const flyIn  = Math.min(1, et / 1.5);
-            const flyOut = p > 0.72 ? (p - 0.72) / 0.28 : 0;
-            const owlX   = treeX + flyOut * (W - treeX + sz * 2);
-            const owlY   = treeTopY - sz * 0.5 - (1 - flyIn) * H * 0.20;
-            const edgeFade = owlX > W * 0.9 ? 1 - (owlX - W * 0.9) / (sz * 2) : 1;
+            const perchX   = treeX + S * 0.020;
+            const perchY   = treeTopY + S * 0.145;
+            const swoopEnd = 0.28;
+            const leaveAt  = 0.70;
+            const fadeIn   = Math.min(1, et / 0.55);
 
-            ctx.globalAlpha = Math.min(flyIn, edgeFade);
-            ctx.fillStyle = '#150d05'; ctx.strokeStyle = '#150d05';
+            const drawFlyingOwl = (x, y, phase, dir, lift, alpha, mode) => {
+              const wingBeat = Math.sin(phase * TAU);
+              const flap = mode === 'departing'
+                ? wingBeat * 0.55 - 0.10
+                : -0.42 + wingBeat * 0.22;
 
-            // Body
-            ctx.beginPath(); ctx.ellipse(owlX, owlY + sz*0.28, sz*0.36, sz*0.50, 0, 0, TAU); ctx.fill();
+              ctx.save();
+              ctx.globalAlpha = alpha;
+              ctx.translate(x, y);
+              ctx.scale(dir, 1);
+              ctx.rotate(lift);
+              ctx.fillStyle = mode === 'departing' ? '#0f0904' : '#1b1008';
 
-            // Head (rotates)
-            ctx.save();
-            ctx.translate(owlX, owlY - sz*0.14);
-            ctx.rotate(Math.sin(et * 1.1) * 0.42);
-            ctx.beginPath(); ctx.arc(0, 0, sz*0.32, 0, TAU); ctx.fill();
-            // Ear tufts
-            [[- sz*0.15, sz*0.07], [sz*0.15, -sz*0.07]].forEach(([ox, tip]) => {
+              if (mode === 'departing') {
+                const liftPulse = Math.sin(phase * TAU * 0.36) * 0.04;
+                const farWingA = -0.48 + liftPulse;
+                const nearWingA = -0.20 - liftPulse * 0.55;
+
+                // Stylized owl from the reference, mirrored into a single night silhouette.
+                ctx.scale(-1, 1);
+                ctx.save();
+                ctx.rotate(farWingA);
+                ctx.fillStyle = '#100904';
+                ctx.beginPath();
+                ctx.moveTo(-sz * 0.06, -sz * 0.02);
+                ctx.quadraticCurveTo(-sz * 0.86, -sz * 0.76, -sz * 1.86, -sz * 0.58);
+                ctx.quadraticCurveTo(-sz * 1.62, -sz * 0.42, -sz * 1.92, -sz * 0.28);
+                ctx.quadraticCurveTo(-sz * 1.52, -sz * 0.20, -sz * 1.86, -sz * 0.04);
+                ctx.quadraticCurveTo(-sz * 1.42, sz * 0.02, -sz * 1.70, sz * 0.18);
+                ctx.quadraticCurveTo(-sz * 0.92, sz * 0.22, -sz * 0.08, sz * 0.16);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+
+                ctx.save();
+                ctx.rotate(nearWingA);
+                ctx.fillStyle = '#120a04';
+                ctx.beginPath();
+                ctx.moveTo(0, -sz * 0.04);
+                ctx.quadraticCurveTo(sz * 0.82, -sz * 0.86, sz * 1.94, -sz * 0.76);
+                ctx.quadraticCurveTo(sz * 1.70, -sz * 0.56, sz * 2.02, -sz * 0.44);
+                ctx.quadraticCurveTo(sz * 1.62, -sz * 0.34, sz * 1.92, -sz * 0.17);
+                ctx.quadraticCurveTo(sz * 1.46, -sz * 0.08, sz * 1.70, sz * 0.08);
+                ctx.quadraticCurveTo(sz * 0.88, sz * 0.18, sz * 0.02, sz * 0.14);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+
+                ctx.fillStyle = '#0d0703';
+                ctx.beginPath();
+                ctx.moveTo(sz * 0.34, sz * 0.12);
+                ctx.lineTo(sz * 0.98, sz * 0.04);
+                ctx.lineTo(sz * 0.80, sz * 0.20);
+                ctx.lineTo(sz * 1.04, sz * 0.34);
+                ctx.lineTo(sz * 0.34, sz * 0.34);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#130a04';
+                ctx.beginPath();
+                ctx.ellipse(0, sz * 0.20, sz * 0.58, sz * 0.34, 0.06, 0, TAU);
+                ctx.fill();
+
+                ctx.fillStyle = '#0f0803';
+                ctx.beginPath();
+                ctx.arc(-sz * 0.38, -sz * 0.10, sz * 0.36, 0, TAU);
+                ctx.fill();
+
+                ctx.fillStyle = '#140b04';
+                ctx.beginPath();
+                ctx.moveTo(-sz * 0.58, -sz * 0.18);
+                ctx.quadraticCurveTo(-sz * 0.34, -sz * 0.48, -sz * 0.10, -sz * 0.18);
+                ctx.quadraticCurveTo(-sz * 0.02, sz * 0.10, -sz * 0.34, sz * 0.18);
+                ctx.quadraticCurveTo(-sz * 0.66, sz * 0.10, -sz * 0.58, -sz * 0.18);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#0b0502';
+                ctx.beginPath();
+                ctx.moveTo(-sz * 0.35, -sz * 0.02);
+                ctx.lineTo(-sz * 0.26, sz * 0.10);
+                ctx.lineTo(-sz * 0.44, sz * 0.10);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.strokeStyle = '#0b0502';
+                ctx.lineWidth = sz * 0.045;
+                ctx.lineCap = 'round';
+                [-sz * 0.16, sz * 0.03].forEach((legX, i) => {
+                  ctx.beginPath();
+                  ctx.moveTo(legX, sz * 0.42);
+                  ctx.lineTo(legX + sz * (0.06 + i * 0.03), sz * 0.61);
+                  ctx.stroke();
+                });
+                ctx.restore();
+                return;
+              }
+
+              const wingRaise = 0.18 + Math.max(0, -wingBeat) * 0.12;
+
+              // Front-view owl silhouette for the swoop-in: raised wings, compact body, tail.
+              ctx.fillStyle = '#100904';
+              ctx.save();
+              ctx.rotate(-wingRaise * 0.62);
               ctx.beginPath();
-              ctx.moveTo(ox, -sz*0.26); ctx.lineTo(ox + tip, -sz*0.46); ctx.lineTo(ox * 0.45, -sz*0.30);
-              ctx.closePath(); ctx.fill();
-            });
-            // Eyes
-            ctx.fillStyle = 'rgba(255,215,130,0.95)';
-            [-sz*0.11, sz*0.11].forEach(ex => {
-              ctx.beginPath(); ctx.arc(ex, 0, sz*0.09, 0, TAU); ctx.fill();
-            });
-            ctx.fillStyle = '#0e0808';
-            [-sz*0.11, sz*0.11].forEach(ex => {
-              ctx.beginPath(); ctx.arc(ex, 0, sz*0.048, 0, TAU); ctx.fill();
-            });
-            ctx.restore();
+              ctx.moveTo(-sz * 0.12, -sz * 0.02);
+              ctx.quadraticCurveTo(-sz * 0.42, -sz * 0.92, -sz * 0.94, -sz * 1.38);
+              ctx.quadraticCurveTo(-sz * 1.14, -sz * 1.08, -sz * 1.00, -sz * 0.76);
+              ctx.quadraticCurveTo(-sz * 1.20, -sz * 0.64, -sz * 1.02, -sz * 0.40);
+              ctx.quadraticCurveTo(-sz * 1.18, -sz * 0.24, -sz * 0.92, -sz * 0.08);
+              ctx.quadraticCurveTo(-sz * 0.58, sz * 0.08, -sz * 0.12, sz * 0.14);
+              ctx.closePath();
+              ctx.fill();
+              ctx.restore();
 
-            // Talons
-            ctx.lineWidth = sz * 0.07; ctx.lineCap = 'round';
-            [[-sz*0.10, -sz*0.24], [-sz*0.10, -sz*0.13], [sz*0.10, sz*0.24], [sz*0.10, sz*0.13]].forEach(([bx, tx]) => {
-              ctx.beginPath(); ctx.moveTo(owlX + bx, owlY + sz*0.78); ctx.lineTo(owlX + tx, owlY + sz*0.88); ctx.stroke();
-            });
+              ctx.save();
+              ctx.rotate(wingRaise * 0.62);
+              ctx.beginPath();
+              ctx.moveTo(sz * 0.12, -sz * 0.02);
+              ctx.quadraticCurveTo(sz * 0.42, -sz * 0.92, sz * 0.94, -sz * 1.38);
+              ctx.quadraticCurveTo(sz * 1.14, -sz * 1.08, sz * 1.00, -sz * 0.76);
+              ctx.quadraticCurveTo(sz * 1.20, -sz * 0.64, sz * 1.02, -sz * 0.40);
+              ctx.quadraticCurveTo(sz * 1.18, -sz * 0.24, sz * 0.92, -sz * 0.08);
+              ctx.quadraticCurveTo(sz * 0.58, sz * 0.08, sz * 0.12, sz * 0.14);
+              ctx.closePath();
+              ctx.fill();
+              ctx.restore();
+
+              ctx.beginPath();
+              ctx.ellipse(0, sz * 0.22, sz * 0.42, sz * 0.58, 0, 0, TAU);
+              ctx.fill();
+
+              ctx.fillStyle = '#0b0502';
+              ctx.beginPath();
+              ctx.moveTo(-sz * 0.25, sz * 0.68);
+              ctx.lineTo(0, sz * 1.04);
+              ctx.lineTo(sz * 0.25, sz * 0.68);
+              ctx.lineTo(sz * 0.14, sz * 1.14);
+              ctx.lineTo(0, sz * 0.98);
+              ctx.lineTo(-sz * 0.14, sz * 1.14);
+              ctx.closePath();
+              ctx.fill();
+
+              ctx.beginPath();
+              ctx.arc(0, -sz * 0.28, sz * 0.32, 0, TAU);
+              ctx.fill();
+
+              [[-sz * 0.18, -1], [sz * 0.18, 1]].forEach(([ox, side]) => {
+                ctx.beginPath();
+                ctx.moveTo(ox, -sz * 0.50);
+                ctx.lineTo(ox + side * sz * 0.12, -sz * 0.76);
+                ctx.lineTo(ox - side * sz * 0.05, -sz * 0.55);
+                ctx.closePath();
+                ctx.fill();
+              });
+
+              ctx.restore();
+            };
+
+            const drawPerchedOwl = (x, y, alpha) => {
+              const headTurn = Math.sin(et * 1.28) * 0.36;
+              ctx.save();
+              ctx.globalAlpha = alpha;
+              ctx.translate(x, y);
+
+              ctx.fillStyle = '#160d06';
+              ctx.beginPath();
+              ctx.ellipse(0, sz * 0.24, sz * 0.34, sz * 0.54, 0, 0, TAU);
+              ctx.fill();
+
+              ctx.fillStyle = '#211307';
+              ctx.beginPath();
+              ctx.ellipse(-sz * 0.20, sz * 0.20, sz * 0.14, sz * 0.44, -0.16, 0, TAU);
+              ctx.ellipse(sz * 0.20, sz * 0.20, sz * 0.14, sz * 0.44, 0.16, 0, TAU);
+              ctx.fill();
+
+              ctx.save();
+              ctx.translate(0, -sz * 0.18);
+              ctx.rotate(headTurn);
+              ctx.fillStyle = '#1a0f07';
+              ctx.beginPath(); ctx.arc(0, 0, sz * 0.34, 0, TAU); ctx.fill();
+              [[-sz * 0.16, -1], [sz * 0.16, 1]].forEach(([ox, side]) => {
+                ctx.beginPath();
+                ctx.moveTo(ox, -sz * 0.25);
+                ctx.lineTo(ox + side * sz * 0.12, -sz * 0.50);
+                ctx.lineTo(ox - side * sz * 0.05, -sz * 0.31);
+                ctx.closePath(); ctx.fill();
+              });
+              ctx.fillStyle = 'rgba(255,222,128,0.96)';
+              [-sz * 0.12, sz * 0.12].forEach(ex => {
+                ctx.beginPath(); ctx.arc(ex, -sz * 0.02, sz * 0.085, 0, TAU); ctx.fill();
+              });
+              ctx.fillStyle = '#090504';
+              [-sz * 0.12, sz * 0.12].forEach(ex => {
+                ctx.beginPath(); ctx.arc(ex, -sz * 0.02, sz * 0.044, 0, TAU); ctx.fill();
+              });
+              ctx.restore();
+
+              ctx.strokeStyle = '#100904';
+              ctx.lineWidth = sz * 0.055;
+              ctx.lineCap = 'round';
+              [-sz * 0.10, sz * 0.10].forEach(footX => {
+                ctx.beginPath(); ctx.moveTo(footX, sz * 0.75); ctx.lineTo(footX + sz * 0.13, sz * 0.84); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(footX, sz * 0.75); ctx.lineTo(footX - sz * 0.13, sz * 0.84); ctx.stroke();
+              });
+              ctx.restore();
+            };
+
+            if (p < swoopEnd) {
+              const q = p / swoopEnd;
+              const ease = 1 - Math.pow(1 - q, 3);
+              const startX = perchX - S * 0.52;
+              const startY = perchY - H * 0.28;
+              const owlX = startX + (perchX - startX) * ease;
+              const owlY = startY + (perchY - startY) * ease + Math.sin(q * Math.PI) * S * 0.060;
+              drawFlyingOwl(owlX, owlY, et * 1.7, 1, 0.34 - ease * 0.42, fadeIn, 'swooping');
+            } else if (p < leaveAt) {
+              const settle = Math.min(1, (p - swoopEnd) / 0.08);
+              drawPerchedOwl(perchX, perchY, settle);
+            } else {
+              const q = (p - leaveAt) / (1 - leaveAt);
+              const ease = q * q * (3 - 2 * q);
+              const owlX = perchX + (W - perchX + sz * 2) * ease;
+              const roofPassY = cby - rh - sz * 0.85;
+              const endY = roofPassY + S * 0.06;
+              const owlY = perchY * (1 - ease) + endY * ease - Math.sin(q * Math.PI) * S * 0.14;
+              const edgeFade = owlX > W * 0.88 ? Math.max(0, 1 - (owlX - W * 0.88) / (sz * 3.0)) : 1;
+              drawFlyingOwl(owlX, owlY, et * 2.15, 1, -0.10 - ease * 0.10, edgeFade, 'departing');
+            }
           }
         }
 
