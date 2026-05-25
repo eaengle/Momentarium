@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#06080f" rx="80"/>
+  <!-- Globe body -->
+  <circle cx="256" cy="218" r="168" fill="#0d1a30" stroke="rgba(175,215,255,0.55)" stroke-width="7"/>
+  <!-- Glass highlight -->
+  <ellipse cx="196" cy="155" rx="62" ry="38" fill="rgba(255,255,255,0.1)" transform="rotate(-20,196,155)"/>
+  <!-- Stars -->
+  <circle cx="210" cy="148" r="4" fill="white" opacity="0.85"/>
+  <circle cx="278" cy="132" r="3" fill="white" opacity="0.65"/>
+  <circle cx="312" cy="175" r="2.5" fill="white" opacity="0.75"/>
+  <circle cx="235" cy="195" r="3.5" fill="white" opacity="0.55"/>
+  <circle cx="188" cy="190" r="2" fill="white" opacity="0.5"/>
+  <circle cx="310" cy="148" r="2" fill="white" opacity="0.6"/>
+  <!-- Snow ground -->
+  <path d="M 100 330 A 168 168 0 0 0 412 330 Z" fill="#d0dff0"/>
+  <!-- Cabin silhouette -->
+  <rect x="218" y="276" width="76" height="54" fill="#3a2818"/>
+  <polygon points="206,276 256,232 306,276" fill="#1e1e1e"/>
+  <!-- Window glow -->
+  <rect x="240" y="290" width="22" height="22" fill="#fde08a"/>
+  <!-- Stand -->
+  <path d="M 228 390 L 216 420 L 296 420 L 284 390 Z" fill="rgba(120,90,58,0.9)"/>
+  <ellipse cx="256" cy="420" rx="62" ry="16" fill="rgba(110,82,50,0.95)"/>
+</svg>

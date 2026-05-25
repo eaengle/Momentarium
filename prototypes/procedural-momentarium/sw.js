@@ -1,14 +1,5 @@
-const CACHE  = 'momentarium-v3';
-const ASSETS = [
-  './',
-  './index.html',
-  './app.js',
-  './manifest.json',
-  './icon.svg',
-  './assets/scenes/tiny-cabin/background-placeholder.svg',
-  './assets/scenes/beach/background-placeholder.svg',
-  './assets/scenes/aquarium/background-placeholder.svg',
-];
+const CACHE = 'momentarium-v2';
+const ASSETS = ['./', './index.html', './app.js', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -24,7 +15,7 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Network-first: always try fresh, fall back to cache if offline
+// Network-first: always try to fetch fresh, fall back to cache if offline
 self.addEventListener('fetch', e => {
   e.respondWith(
     fetch(e.request)

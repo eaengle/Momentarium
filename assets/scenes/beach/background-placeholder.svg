@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 960">
+  <defs>
+    <linearGradient id="sunsetSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#1a0c2e"/>
+      <stop offset="35%"  stop-color="#6b1f4a"/>
+      <stop offset="60%"  stop-color="#c94f28"/>
+      <stop offset="78%"  stop-color="#f07830"/>
+      <stop offset="100%" stop-color="#f5a040"/>
+    </linearGradient>
+    <linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#1a4a70"/>
+      <stop offset="40%"  stop-color="#0e3050"/>
+      <stop offset="100%" stop-color="#082030"/>
+    </linearGradient>
+    <linearGradient id="sunPath" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="rgba(255,200,80,0.45)"/>
+      <stop offset="100%" stop-color="rgba(255,160,40,0)"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="rgba(255,220,100,0.60)"/>
+      <stop offset="50%"  stop-color="rgba(255,180,60,0.25)"/>
+      <stop offset="100%" stop-color="rgba(255,160,40,0)"/>
+    </radialGradient>
+    <filter id="softBlur">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+
+  <!-- Sky gradient -->
+  <rect width="540" height="960" fill="url(#sunsetSky)"/>
+
+  <!-- Stars (faint, near top in darker sky) -->
+  <circle cx="48"  cy="52"  r="1.2" fill="white" opacity="0.50"/>
+  <circle cx="110" cy="34"  r="0.9" fill="white" opacity="0.40"/>
+  <circle cx="175" cy="68"  r="1.0" fill="white" opacity="0.45"/>
+  <circle cx="490" cy="44"  r="1.1" fill="white" opacity="0.45"/>
+  <circle cx="440" cy="78"  r="0.8" fill="white" opacity="0.35"/>
+
+  <!-- Sun glow halo -->
+  <circle cx="270" cy="598" r="120" fill="url(#sunGlow)"/>
+
+  <!-- Sun -->
+  <circle cx="270" cy="598" r="36" fill="#ffdc60"/>
+  <circle cx="270" cy="598" r="30" fill="#ffc840"/>
+
+  <!-- Sun shimmer path on water -->
+  <rect x="200" y="598" width="140" height="362" fill="url(#sunPath)"/>
+
+  <!-- Distant headland / hill right side -->
+  <path d="M 440,590 Q 490,540 540,560 L 540,620 L 440,620 Z" fill="#1a3040" opacity="0.8"/>
+  <!-- Distant headland left side -->
+  <path d="M 0,580 Q 40,545 90,558 L 90,620 L 0,620 Z" fill="#1a3040" opacity="0.8"/>
+
+  <!-- Horizon line glow -->
+  <rect x="0" y="590" width="540" height="8" fill="rgba(255,160,60,0.35)" filter="url(#softBlur)"/>
+
+  <!-- Ocean body -->
+  <rect x="0" y="596" width="540" height="364" fill="url(#ocean)"/>
+
+  <!-- Wave bands -->
+  <path d="M 0,630 Q 90,618 180,630 Q 270,642 360,630 Q 450,618 540,630 L 540,640 Q 450,628 360,640 Q 270,652 180,640 Q 90,628 0,640 Z"
+    fill="rgba(255,255,255,0.08)"/>
+  <path d="M 0,680 Q 90,668 180,680 Q 270,692 360,680 Q 450,668 540,680 L 540,690 Q 450,678 360,690 Q 270,702 180,690 Q 90,678 0,690 Z"
+    fill="rgba(255,255,255,0.07)"/>
+  <path d="M 0,740 Q 90,728 180,740 Q 270,752 360,740 Q 450,728 540,740 L 540,750 Q 450,738 360,750 Q 270,762 180,750 Q 90,738 0,750 Z"
+    fill="rgba(255,255,255,0.06)"/>
+  <path d="M 0,820 Q 90,808 180,820 Q 270,832 360,820 Q 450,808 540,820 L 540,830 Q 450,818 360,830 Q 270,842 180,830 Q 90,818 0,830 Z"
+    fill="rgba(255,255,255,0.06)"/>
+
+  <!-- Sandy beach foreground strip -->
+  <path d="M 0,880 Q 270,858 540,880 L 540,960 L 0,960 Z" fill="#c8a060"/>
+  <path d="M 0,890 Q 270,868 540,890 L 540,900 Q 270,878 0,900 Z" fill="rgba(210,170,90,0.5)"/>
+
+  <!-- Cloud wisps -->
+  <ellipse cx="120" cy="280" rx="80" ry="18" fill="rgba(255,140,80,0.18)" filter="url(#softBlur)"/>
+  <ellipse cx="390" cy="240" rx="70" ry="14" fill="rgba(255,140,80,0.15)" filter="url(#softBlur)"/>
+  <ellipse cx="250" cy="180" rx="60" ry="12" fill="rgba(200,100,120,0.12)" filter="url(#softBlur)"/>
+  <ellipse cx="460" cy="340" rx="55" ry="11" fill="rgba(200,100,100,0.10)" filter="url(#softBlur)"/>
+</svg>

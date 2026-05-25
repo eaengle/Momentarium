@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 960">
+  <defs>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0a2a50"/>
+      <stop offset="30%"  stop-color="#083a5c"/>
+      <stop offset="65%"  stop-color="#063048"/>
+      <stop offset="100%" stop-color="#041e30"/>
+    </linearGradient>
+    <linearGradient id="waterSurface" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0e5880"/>
+      <stop offset="100%" stop-color="rgba(14,88,128,0)"/>
+    </linearGradient>
+    <radialGradient id="causticsA" cx="30%" cy="20%" r="40%">
+      <stop offset="0%"   stop-color="rgba(80,200,255,0.12)"/>
+      <stop offset="100%" stop-color="rgba(80,200,255,0)"/>
+    </radialGradient>
+    <radialGradient id="causticsB" cx="70%" cy="35%" r="38%">
+      <stop offset="0%"   stop-color="rgba(60,180,255,0.10)"/>
+      <stop offset="100%" stop-color="rgba(60,180,255,0)"/>
+    </radialGradient>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <filter id="blur2">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+  </defs>
+
+  <!-- Deep water fill -->
+  <rect width="540" height="960" fill="url(#water)"/>
+
+  <!-- Water surface shimmer (top) -->
+  <rect x="0" y="0" width="540" height="110" fill="url(#waterSurface)"/>
+
+  <!-- Caustic light patches -->
+  <ellipse cx="162" cy="190" rx="210" ry="130" fill="url(#causticsA)"/>
+  <ellipse cx="378" cy="336" rx="205" ry="148" fill="url(#causticsB)"/>
+
+  <!-- Light ray columns (subtle) -->
+  <polygon points="80,0 110,0 160,800 30,800"  fill="rgba(120,220,255,0.030)"/>
+  <polygon points="200,0 230,0 300,800 130,800" fill="rgba(120,220,255,0.025)"/>
+  <polygon points="330,0 360,0 450,800 260,800" fill="rgba(120,220,255,0.030)"/>
+  <polygon points="450,0 480,0 540,800 380,800" fill="rgba(120,220,255,0.020)"/>
+
+  <!-- Surface ripple lines -->
+  <path d="M 0,28 Q 135,14 270,28 Q 405,42 540,28" stroke="rgba(150,230,255,0.25)" stroke-width="1.5" fill="none"/>
+  <path d="M 0,48 Q 135,34 270,48 Q 405,62 540,48" stroke="rgba(150,230,255,0.15)" stroke-width="1"   fill="none"/>
+
+  <!-- Mid-scene fish silhouettes -->
+  <!-- Large fish (center) -->
+  <ellipse cx="270" cy="360" rx="62" ry="24" fill="rgba(6,30,55,0.70)"/>
+  <polygon points="208,360 170,338 170,382" fill="rgba(6,30,55,0.70)"/>
+  <line x1="270" y1="338" x2="270" y2="348" stroke="rgba(6,30,55,0.50)" stroke-width="1"/>
+
+  <!-- Small fish upper-right -->
+  <ellipse cx="400" cy="240" rx="28" ry="11" fill="rgba(8,35,62,0.60)"/>
+  <polygon points="372,240 354,228 354,252" fill="rgba(8,35,62,0.60)"/>
+
+  <!-- Tiny fish left -->
+  <ellipse cx="130" cy="460" rx="18" ry="7"  fill="rgba(6,28,50,0.55)"/>
+  <polygon points="112,460 100,453 100,467"  fill="rgba(6,28,50,0.55)"/>
+
+  <!-- School of tiny fish upper area -->
+  <ellipse cx="310" cy="148" rx="12" ry="5"  fill="rgba(8,32,58,0.50)"/>
+  <ellipse cx="328" cy="140" rx="10" ry="4"  fill="rgba(8,32,58,0.45)"/>
+  <ellipse cx="346" cy="152" rx="11" ry="4"  fill="rgba(8,32,58,0.48)"/>
+  <ellipse cx="294" cy="138" rx="9"  ry="3.5" fill="rgba(8,32,58,0.40)"/>
+
+  <!-- Coral / rocks base -->
+  <ellipse cx="270" cy="960" rx="270" ry="60"  fill="#041826"/>
+  <ellipse cx="80"  cy="940" rx="80"  ry="44"  fill="#052030"/>
+  <ellipse cx="460" cy="945" rx="90"  ry="48"  fill="#052030"/>
+
+  <!-- Seaweed left -->
+  <path d="M 60,960 Q 48,890 66,840 Q 80,798 62,750 Q 48,706 68,660"
+    stroke="#0c4a28" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M 80,960 Q 96,896 78,848 Q 64,806 84,762 Q 98,720 80,674"
+    stroke="#0a4224" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+  <!-- Seaweed right -->
+  <path d="M 480,960 Q 468,886 488,836 Q 502,792 480,742 Q 462,698 482,652"
+    stroke="#0c4a28" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M 460,960 Q 474,892 456,844 Q 442,800 462,756 Q 476,714 456,668"
+    stroke="#0a4224" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+  <!-- Sea anemone tentacles center-bottom -->
+  <path d="M 250,960 Q 240,920 252,890" stroke="#8b1a5a" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M 262,960 Q 258,916 270,884" stroke="#8b1a5a" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M 274,960 Q 276,918 268,888" stroke="#9b2060" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M 286,960 Q 290,920 278,890" stroke="#8b1a5a" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M 298,960 Q 296,916 310,886" stroke="#8b1a5a" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- Soft ambient glow near bottom -->
+  <ellipse cx="270" cy="920" rx="160" ry="40" fill="rgba(30,90,60,0.12)" filter="url(#softGlow)"/>
+</svg>
