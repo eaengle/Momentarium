@@ -153,7 +153,11 @@ class SnowOverlay {
 }
 
 class SmokeOverlay {
-  constructor() { this.puffs = []; }
+  constructor() {
+    this.puffs = [];
+    this._kick = 0;
+    this._stir = 0;
+  }
 
   setChimneyPos(portrait, landscape) {
     this._chimneyPortrait  = portrait;
@@ -167,46 +171,104 @@ class SmokeOverlay {
                       : (this._chimneyPortrait  || { cx: 0.525, cy: 0.293 });
     this.cx = W * pos.cx;
     this.cy = H * pos.cy;
-    this.puffs = Array.from({ length: 7 }, (_, i) => this._spawn(i / 7));
+    this.puffs = Array.from({ length: 26 }, (_, i) => this._spawn(i / 26));
   }
 
-  _spawn(tOffset) {
-    const life = rand(2.8, 5.0);
+  _spawn(ageFraction = 0) {
+    const maxLife = rand(6.0, 10.0);
+    const initSz  = rand(4, 8);
     return {
       x:       this.cx + rand(-3, 3),
       y:       this.cy,
-      vx:      rand(-0.12, 0.12),
-      vy:      rand(-0.55, -0.22),
-      sz:      rand(5, 10),
-      a:       rand(0.06, 0.15),
-      life:    0,
-      maxLife: life,
-      delay:   -(tOffset * life),
+      vx:      rand(-2, 4),         // px/s — nearly straight up at chimney; drift develops with age
+      vy:      rand(-28, -16),      // px/s — slow rise
+      initSz,
+      sz:      initSz,
+      maxSz:   rand(28, 46),        // billow size — smaller than before, less globular
+      life:    ageFraction * maxLife,
+      maxLife,
+      warm:    rand(0.3, 0.9),
+      phase:   rand(0, TAU),
     };
   }
 
-  update(dt) {
+  kick(strength) {
+    this._kick = Math.max(this._kick, strength);
     for (const p of this.puffs) {
-      p.delay -= dt * 0.001;
-      if (p.delay > 0) continue;
-      p.life += dt * 0.001;
-      p.x    += p.vx;
-      p.y    += p.vy;
-      p.vx   += (Math.random() - 0.5) * 0.012;
-      p.sz   += 0.035;
+      p.vy -= strength * 2.5;
+      p.vx += (Math.random() - 0.5) * strength * 2;
+    }
+  }
+
+  stir(strength) {
+    this._stir = Math.max(this._stir, strength);
+  }
+
+  update(dt, t) {
+    const s = dt * 0.001;
+    this._kick = Math.max(0, this._kick - s * 3);
+    this._stir = Math.max(0, this._stir - s * 1.5);
+
+    for (const p of this.puffs) {
+      p.life += s;
+
+      const prog = Math.max(0, p.life / p.maxLife);
+      // Turbulence ramps in after the first 30% of life — column is straight near chimney
+      const turbScale = clamp((prog - 0.30) / 0.55, 0, 1);
+
+      const tx = (Math.sin(t * 0.65 + p.phase + p.y * 0.003) * 8
+               +  Math.cos(t * 0.37 + p.x * 0.005) * 5) * turbScale;
+      const ty =  Math.cos(t * 0.50 + p.phase) * 3 * turbScale;
+
+      p.vx += (tx + this._stir * 25) * s;
+      p.vy += ty * s;
+
+      // Drag: lateral fades faster than vertical (wind carries, buoyancy persists)
+      p.vx *= 1 - s * 0.22;
+      p.vy *= 1 - s * 0.12;
+
+      p.x += p.vx * s;
+      p.y += p.vy * s;
+
+      // Grow puff radius as it rises (easeOutQuad)
+      const ease = 1 - (1 - Math.min(prog, 1)) ** 2;
+      p.sz = p.initSz + (p.maxSz - p.initSz) * ease;
+
       if (p.life > p.maxLife) Object.assign(p, this._spawn(0));
     }
   }
 
   draw(ctx, W, H, t) {
     ctx.save();
-    ctx.fillStyle = 'rgba(195,195,200,1)';
     for (const p of this.puffs) {
-      if (p.delay > 0) continue;
-      const prog = p.life / p.maxLife;
-      const fade = prog < 0.15 ? prog / 0.15 : 1 - prog;
-      ctx.globalAlpha = p.a * fade * fade;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.sz, 0, TAU); ctx.fill();
+      if (p.sz < 1) continue;
+      const prog = Math.max(0, Math.min(1, p.life / p.maxLife));
+
+      // Fade envelope: quick ramp-in → hold → gentle ramp-out
+      let fade;
+      if (prog < 0.12)      fade = prog / 0.12;
+      else if (prog < 0.58) fade = 1;
+      else                  fade = 1 - (prog - 0.58) / 0.42;
+
+      const alpha = 0.18 * fade * fade;
+      if (alpha < 0.003) continue;
+
+      // Warm dark-gray near chimney → cooler medium-gray as it drifts
+      const w = p.warm * Math.max(0, 1 - prog * 0.85);
+      const r = Math.round(155 + w * 18);
+      const g = Math.round(152 + w * 10);
+      const b = 162;
+
+      // Soft radial gradient gives each puff a volumetric, cloud-like edge
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.sz);
+      grad.addColorStop(0,    `rgba(${r},${g},${b},${Math.min(0.999, alpha * 1.7).toFixed(3)})`);
+      grad.addColorStop(0.45, `rgba(${r},${g},${b},${alpha.toFixed(3)})`);
+      grad.addColorStop(1,    `rgba(${r},${g},${b},0)`);
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.sz, 0, TAU);
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -1099,7 +1161,7 @@ class CabinEventsOverlay {
 // ─── OVERLAY REGISTRY ─────────────────────────────────────────────────────────
 const OVERLAY_REGISTRY = {
   snow:            (W, H) => { const o = new SnowOverlay();            o.init(W, H); return o; },
-  smoke:           (W, H) => { const o = new SmokeOverlay().setChimneyPos({ cx: 0.563, cy: 0.550 }, { cx: 0.539, cy: 0.457 }); o.init(W, H); return o; },
+  smoke:           (W, H) => { const o = new SmokeOverlay().setChimneyPos({ cx: 0.563, cy: 0.635 }, { cx: 0.539, cy: 0.510 }); o.init(W, H); return o; },
   cabinEvents:     (W, H) => { const o = new CabinEventsOverlay();     o.init(W, H); return o; },
   birds:           (W, H) => { const o = new BirdsOverlay();           o.init(W, H); return o; },
   waterGlints:     (W, H) => { const o = new WaterGlintsOverlay();     o.init(W, H); return o; },
