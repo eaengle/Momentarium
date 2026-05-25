@@ -1193,34 +1193,99 @@ const SCENES = [
             ctx.translate(fx, fy);
             if (ev.dir < 0) ctx.scale(-1, 1);
 
-            ctx.fillStyle = '#9f4b19';
-            ctx.beginPath(); ctx.ellipse(0, -sz * 0.26, sz * 0.48, sz * 0.20, -0.08, 0, TAU); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(sz * 0.40, -sz * 0.35, sz * 0.18, sz * 0.13, -0.15, 0, TAU); ctx.fill();
+            const coat = '#c96c25';
+            const darkCoat = '#8a3d16';
+            const black = '#1b0e08';
+            const cream = '#f0efe6';
+            const backStep = step;
+            const foreStep = -step;
+
+            // Tail sits behind the body, high and full with a pale tip.
+            ctx.fillStyle = darkCoat;
             ctx.beginPath();
-            ctx.moveTo(sz * 0.47, -sz * 0.48);
-            ctx.lineTo(sz * 0.55, -sz * 0.72);
-            ctx.lineTo(sz * 0.62, -sz * 0.45);
-            ctx.closePath(); ctx.fill();
+            ctx.moveTo(-sz * 0.46, -sz * 0.31);
+            ctx.bezierCurveTo(-sz * 0.78, -sz * 0.52, -sz * 1.02, -sz * 0.44, -sz * 1.10, -sz * 0.26);
+            ctx.bezierCurveTo(-sz * 0.94, -sz * 0.18, -sz * 0.70, -sz * 0.15, -sz * 0.43, -sz * 0.21);
+            ctx.closePath();
+            ctx.fill();
 
-            ctx.fillStyle = '#6f2e10';
-            ctx.beginPath(); ctx.ellipse(-sz * 0.45, -sz * 0.28, sz * 0.34, sz * 0.12, -0.38, 0, TAU); ctx.fill();
-            ctx.fillStyle = '#edf4fb';
-            ctx.beginPath(); ctx.ellipse(-sz * 0.70, -sz * 0.38, sz * 0.13, sz * 0.055, -0.35, 0, TAU); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(sz * 0.48, -sz * 0.28, sz * 0.09, sz * 0.045, -0.12, 0, TAU); ctx.fill();
+            ctx.fillStyle = cream;
+            ctx.beginPath();
+            ctx.moveTo(-sz * 0.95, -sz * 0.37);
+            ctx.bezierCurveTo(-sz * 1.06, -sz * 0.35, -sz * 1.13, -sz * 0.29, -sz * 1.10, -sz * 0.24);
+            ctx.bezierCurveTo(-sz * 1.00, -sz * 0.21, -sz * 0.92, -sz * 0.22, -sz * 0.84, -sz * 0.26);
+            ctx.bezierCurveTo(-sz * 0.87, -sz * 0.32, -sz * 0.91, -sz * 0.35, -sz * 0.95, -sz * 0.37);
+            ctx.fill();
 
-            ctx.strokeStyle = '#5a260d';
-            ctx.lineWidth = sz * 0.055;
+            // Long, low trotting body.
+            ctx.fillStyle = coat;
+            ctx.beginPath();
+            ctx.moveTo(-sz * 0.54, -sz * 0.26);
+            ctx.bezierCurveTo(-sz * 0.34, -sz * 0.48, sz * 0.16, -sz * 0.54, sz * 0.43, -sz * 0.39);
+            ctx.bezierCurveTo(sz * 0.58, -sz * 0.30, sz * 0.53, -sz * 0.15, sz * 0.28, -sz * 0.12);
+            ctx.bezierCurveTo(-sz * 0.03, -sz * 0.08, -sz * 0.34, -sz * 0.10, -sz * 0.55, -sz * 0.18);
+            ctx.bezierCurveTo(-sz * 0.62, -sz * 0.21, -sz * 0.61, -sz * 0.24, -sz * 0.54, -sz * 0.26);
+            ctx.fill();
+
+            // White chest and underside catch the fox shape at small sizes.
+            ctx.fillStyle = cream;
+            ctx.beginPath();
+            ctx.moveTo(sz * 0.32, -sz * 0.31);
+            ctx.bezierCurveTo(sz * 0.23, -sz * 0.18, sz * 0.03, -sz * 0.11, -sz * 0.16, -sz * 0.13);
+            ctx.bezierCurveTo(sz * 0.10, -sz * 0.08, sz * 0.31, -sz * 0.11, sz * 0.41, -sz * 0.23);
+            ctx.closePath();
+            ctx.fill();
+
+            // Head, pointed muzzle, and alert ears.
+            ctx.fillStyle = coat;
+            ctx.beginPath();
+            ctx.moveTo(sz * 0.38, -sz * 0.38);
+            ctx.bezierCurveTo(sz * 0.52, -sz * 0.53, sz * 0.74, -sz * 0.51, sz * 0.86, -sz * 0.36);
+            ctx.bezierCurveTo(sz * 0.78, -sz * 0.28, sz * 0.63, -sz * 0.25, sz * 0.44, -sz * 0.29);
+            ctx.bezierCurveTo(sz * 0.36, -sz * 0.31, sz * 0.34, -sz * 0.35, sz * 0.38, -sz * 0.38);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(sz * 0.50, -sz * 0.49);
+            ctx.lineTo(sz * 0.55, -sz * 0.75);
+            ctx.lineTo(sz * 0.68, -sz * 0.50);
+            ctx.closePath();
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(sz * 0.66, -sz * 0.47);
+            ctx.lineTo(sz * 0.77, -sz * 0.68);
+            ctx.lineTo(sz * 0.80, -sz * 0.42);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = cream;
+            ctx.beginPath();
+            ctx.moveTo(sz * 0.65, -sz * 0.36);
+            ctx.bezierCurveTo(sz * 0.76, -sz * 0.37, sz * 0.90, -sz * 0.31, sz * 0.95, -sz * 0.26);
+            ctx.bezierCurveTo(sz * 0.81, -sz * 0.22, sz * 0.67, -sz * 0.24, sz * 0.56, -sz * 0.30);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = black;
+            ctx.beginPath(); ctx.arc(sz * 0.92, -sz * 0.27, sz * 0.025, 0, TAU); ctx.fill();
+            ctx.beginPath(); ctx.arc(sz * 0.68, -sz * 0.38, sz * 0.020, 0, TAU); ctx.fill();
+
+            ctx.strokeStyle = black;
+            ctx.lineWidth = sz * 0.070;
             ctx.lineCap = 'round';
-            [-0.24, 0.02, 0.26].forEach((lx, i) => {
+            [
+              [-0.44, backStep * 0.28],
+              [-0.31, -backStep * 0.20],
+              [0.30, foreStep * 0.26],
+              [0.43, -foreStep * 0.18],
+            ].forEach(([lx, sx], i) => {
+              const hipY = i < 2 ? -sz * 0.16 : -sz * 0.18;
+              const footY = sz * 0.06;
               ctx.beginPath();
-              ctx.moveTo(sz * lx, -sz * 0.10);
-              ctx.lineTo(sz * lx + (i % 2 ? -step : step), sz * 0.08);
+              ctx.moveTo(sz * lx, hipY);
+              ctx.lineTo(sz * lx + sx, footY);
               ctx.stroke();
             });
-
-            ctx.fillStyle = '#160b05';
-            ctx.beginPath(); ctx.arc(sz * 0.56, -sz * 0.36, sz * 0.018, 0, TAU); ctx.fill();
-            ctx.beginPath(); ctx.arc(sz * 0.58, -sz * 0.30, sz * 0.020, 0, TAU); ctx.fill();
             ctx.restore();
           }
         }
