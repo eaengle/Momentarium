@@ -16,7 +16,10 @@ const SCENES = [
   {
     id:         'tiny-cabin',
     name:       'Tiny Cabin',
-    background: 'assets/scenes/tiny-cabin/background-placeholder.svg',
+    background: {
+      portrait:  'assets/scenes/tiny-cabin/background-portrait.png',
+      landscape: 'assets/scenes/tiny-cabin/background-landscape.png',
+    },
     overlays:   ['snow', 'smoke'],
   },
   {
@@ -44,7 +47,15 @@ function loadImage(src) {
 }
 
 function preloadScenes(scenes) {
-  return Promise.all(scenes.map(s => loadImage(s.background).then(img => (s.image = img))));
+  return Promise.all(scenes.map(s => {
+    if (typeof s.background === 'object') {
+      return Promise.all([
+        loadImage(s.background.portrait).then(img  => (s.imagePortrait  = img)),
+        loadImage(s.background.landscape).then(img => (s.imageLandscape = img)),
+      ]);
+    }
+    return loadImage(s.background).then(img => (s.image = img));
+  }));
 }
 
 // ─── IMAGE COVER HELPER ───────────────────────────────────────────────────────
@@ -113,11 +124,18 @@ class SnowOverlay {
 class SmokeOverlay {
   constructor() { this.puffs = []; }
 
+  setChimneyPos(portrait, landscape) {
+    this._chimneyPortrait  = portrait;
+    this._chimneyLandscape = landscape || portrait;
+    return this;
+  }
+
   init(W, H) {
     this.W = W; this.H = H;
-    // Chimney sits just right of centre near the top of the cabin background
-    this.cx = W * 0.525;
-    this.cy = H * 0.293;
+    const pos = W > H ? (this._chimneyLandscape || { cx: 0.525, cy: 0.293 })
+                      : (this._chimneyPortrait  || { cx: 0.525, cy: 0.293 });
+    this.cx = W * pos.cx;
+    this.cy = H * pos.cy;
     this.puffs = Array.from({ length: 7 }, (_, i) => this._spawn(i / 7));
   }
 
@@ -427,7 +445,7 @@ class FishSilhouettesOverlay {
 // ─── OVERLAY REGISTRY ─────────────────────────────────────────────────────────
 const OVERLAY_REGISTRY = {
   snow:            (W, H) => { const o = new SnowOverlay();            o.init(W, H); return o; },
-  smoke:           (W, H) => { const o = new SmokeOverlay();           o.init(W, H); return o; },
+  smoke:           (W, H) => { const o = new SmokeOverlay().setChimneyPos({ cx: 0.563, cy: 0.550 }, { cx: 0.539, cy: 0.457 }); o.init(W, H); return o; },
   birds:           (W, H) => { const o = new BirdsOverlay();           o.init(W, H); return o; },
   waterGlints:     (W, H) => { const o = new WaterGlintsOverlay();     o.init(W, H); return o; },
   seaMist:         (W, H) => { const o = new SeaMistOverlay();         o.init(W, H); return o; },
@@ -513,7 +531,18 @@ class MomentariumApp {
       this._reinitOverlays();
     };
     window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', resize);
     resize();
+  }
+
+  // ── Image selection ─────────────────────────────────────────────────────────
+  _sceneImage(scene) {
+    if (scene.imagePortrait || scene.imageLandscape) {
+      return this.W > this.H
+        ? (scene.imageLandscape || scene.imagePortrait)
+        : (scene.imagePortrait  || scene.imageLandscape);
+    }
+    return scene.image || null;
   }
 
   // ── Overlays ────────────────────────────────────────────────────────────────
@@ -645,9 +674,10 @@ class MomentariumApp {
     const scene = SCENES[this.activeIdx];
     ctx.clearRect(0, 0, W, H);
 
-    // Background image (object-fit cover)
-    if (scene.image) {
-      drawImageCover(ctx, scene.image, W, H);
+    // Background image (object-fit cover, orientation-aware)
+    const bg = this._sceneImage(scene);
+    if (bg) {
+      drawImageCover(ctx, bg, W, H);
     } else {
       ctx.fillStyle = '#06080f';
       ctx.fillRect(0, 0, W, H);
