@@ -526,29 +526,29 @@ const SCENES = [
       ctx.fillRect(cx - dw * 0.88, gy, dw * 1.76, S * 0.009);
 
       // Log pile — stacked end-on to the right of the cabin
-      const logR   = S * 0.027;
-      const lpCx   = cbx + cw + S * 0.02 + logR * 4;
-      const logRows = [
-        { cols: 4, xOff: 0      },
-        { cols: 3, xOff: logR   },
-        { cols: 2, xOff: logR * 2 },
-      ];
-      logRows.forEach(({ cols, xOff }, row) => {
-        for (let col = 0; col < cols; col++) {
-          const lx = lpCx - (cols - 1) * logR + col * logR * 2 + xOff * 0;
+      const logR    = S * 0.027;
+      const logGap  = logR * 0.28;
+      const logBase = cbx + cw + logR + logGap;
+      const logCols = [3, 2, 1];
+      const topLogs = [];
+
+      logCols.forEach((rows, col) => {
+        const lx = logBase + col * logR * 1.95;
+        for (let row = 0; row < rows; row++) {
           const ly = gy - logR * (2 * row + 1);
-          ctx.fillStyle = row === 1 ? '#4a2812' : '#3b2010';
-          ctx.beginPath(); ctx.arc(lx + (row * logR * 0.5), ly, logR, 0, TAU); ctx.fill();
+          ctx.fillStyle = (row + col) % 2 ? '#4a2812' : '#3b2010';
+          ctx.beginPath(); ctx.arc(lx, ly, logR, 0, TAU); ctx.fill();
           ctx.strokeStyle = '#6b3c1e'; ctx.lineWidth = 0.8;
-          ctx.beginPath(); ctx.arc(lx + (row * logR * 0.5), ly, logR * 0.55, 0, TAU); ctx.stroke();
-          ctx.beginPath(); ctx.arc(lx + (row * logR * 0.5), ly, logR * 0.28, 0, TAU); ctx.stroke();
+          ctx.beginPath(); ctx.arc(lx, ly, logR * 0.55, 0, TAU); ctx.stroke();
+          ctx.beginPath(); ctx.arc(lx, ly, logR * 0.28, 0, TAU); ctx.stroke();
+
+          if (row === rows - 1) topLogs.push({ x: lx, y: ly });
         }
       });
-      // Snow cap on top logs — row 2 arc centers are lpCx and lpCx + 2*logR
+
       ctx.fillStyle = 'rgba(210,228,245,0.88)';
-      const topY = gy - logR * 5;
-      [lpCx, lpCx + logR * 2].forEach(lx => {
-        ctx.beginPath(); ctx.ellipse(lx, topY - logR * 0.8, logR * 0.92, logR * 0.30, 0, 0, TAU); ctx.fill();
+      topLogs.forEach(({ x, y }) => {
+        ctx.beginPath(); ctx.ellipse(x, y - logR * 0.8, logR * 0.92, logR * 0.30, 0, 0, TAU); ctx.fill();
       });
 
       // Foreground: frozen pond, soft drifts, and snow-dusted brush
