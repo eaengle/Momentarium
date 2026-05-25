@@ -226,6 +226,58 @@ function drawMoon(ctx, mx, my, size, phase) {
   }
 }
 
+function drawStaticCabinAurora(scene, ctx, W, H) {
+  if (!scene._aurora || scene._auroraW !== W || scene._auroraH !== H) {
+    const aurora = document.createElement('canvas');
+    aurora.width = W;
+    aurora.height = H;
+
+    const aCtx = aurora.getContext('2d');
+    aCtx.save();
+    aCtx.globalCompositeOperation = 'screen';
+    aCtx.filter = 'blur(3px)';
+
+    const nStrips = Math.max(28, Math.floor(W / 16));
+    const stripW = W / nStrips;
+
+    for (let i = 0; i < nStrips; i++) {
+      const x = i * stripW;
+      const p = (i + 0.5) / nStrips;
+      const topY = H * 0.04
+        + Math.sin(p * Math.PI * 3.1) * H * 0.048
+        + Math.sin(p * Math.PI * 6.7 + 1.2) * H * 0.018;
+      const botY = H * 0.36
+        + Math.sin(p * Math.PI * 2.8 + 0.8) * H * 0.042
+        + Math.sin(p * Math.PI * 5.4 + 2.0) * H * 0.016;
+      const col = (0.18 + 0.82 * Math.abs(Math.sin(p * Math.PI * 10.5 + 0.3)))
+        * (0.55 + 0.45 * Math.sin(p * Math.PI * 3.8));
+      const a = col * 0.64;
+
+      const grad = aCtx.createLinearGradient(x, topY, x, botY);
+      grad.addColorStop(0.00, 'hsla(330, 85%, 70%, 0)');
+      grad.addColorStop(0.06, `hsla(330, 82%, 68%, ${a * 0.18})`);
+      grad.addColorStop(0.20, `hsla(145, 90%, 62%, ${a * 0.46})`);
+      grad.addColorStop(0.46, `hsla(148, 96%, 72%, ${a * 0.72})`);
+      grad.addColorStop(0.68, `hsla(156, 88%, 58%, ${a * 0.44})`);
+      grad.addColorStop(0.86, `hsla(220, 84%, 60%, ${a * 0.28})`);
+      grad.addColorStop(1.00, 'hsla(290, 74%, 55%, 0)');
+
+      aCtx.fillStyle = grad;
+      aCtx.fillRect(x, topY, stripW + 1, botY - topY);
+    }
+
+    aCtx.restore();
+    scene._aurora = aurora;
+    scene._auroraW = W;
+    scene._auroraH = H;
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.drawImage(scene._aurora, 0, 0);
+  ctx.restore();
+}
+
 // ─── SCENES ───────────────────────────────────────────────────────────────────
 const SCENES = [
 
@@ -233,7 +285,7 @@ const SCENES = [
   {
     name: 'Tiny Cabin',
     particleType: 'snow',
-    particleCount: 500,
+    particleCount: 200,
     draw(ctx, W, H, t) {
       const S  = Math.min(W, H) * 0.46;
       const cx = W / 2;
@@ -251,55 +303,7 @@ const SCENES = [
       // vertical gradient carrying the full aurora colour spectrum. Column brightness
       // is modulated per-strip by a sine field, so ray texture and curtain shape are
       // one unified pass — no separate streak layer to fight the boundary.
-      ctx.save();
-      ctx.globalCompositeOperation = 'screen';
-
-      const aBase   = 0.68 + 0.32 * Math.sin(t * 0.34);
-      const nStrips = Math.max(60, Math.floor(W / 5));
-      const stripW  = W / nStrips;
-
-      // Blur each strip before compositing so adjacent strips blend at their edges,
-      // dissolving the rectangle grid into smooth glowing columns.
-      ctx.filter = 'blur(6px)';
-      for (let i = 0; i < nStrips; i++) {
-        const x = i * stripW;
-        const p = (i + 0.5) / nStrips;          // 0..1 across screen width
-
-        // Curtain top edge — two sine waves for organic undulation
-        const topY = H * 0.04
-          + Math.sin(p * Math.PI * 3.1 + t * 0.22       ) * H * 0.048
-          + Math.sin(p * Math.PI * 6.7 + t * 0.31 + 1.2 ) * H * 0.018;
-
-        // Curtain bottom edge — independent wave so top/bottom move differently
-        const botY = H * 0.36
-          + Math.sin(p * Math.PI * 2.8 + t * 0.18 + 0.8 ) * H * 0.042
-          + Math.sin(p * Math.PI * 5.4 + t * 0.26 + 2.0 ) * H * 0.016;
-
-        // Column brightness: fast sine creates ~5 ray cycles across the screen;
-        // slow sine modulates the large-scale brightness envelope.
-        const col = (0.18 + 0.82 * Math.abs(Math.sin(p * Math.PI * 10.5 + t * 0.14 + 0.3)))
-                  * (0.55 + 0.45 * Math.sin(p * Math.PI * 3.8  + t * 0.09));
-        const a   = col * aBase;
-
-        // Single vertical gradient per strip — full aurora colour spectrum:
-        // pink fringe → upper green → bright green core → lower green → blue-violet base
-        const grad = ctx.createLinearGradient(x, topY, x, botY);
-        grad.addColorStop(0.00, `hsla(330, 85%, 70%, 0)`);
-        grad.addColorStop(0.06, `hsla(330, 82%, 68%, ${a * 0.22})`);
-        grad.addColorStop(0.20, `hsla(145, 90%, 62%, ${a * 0.62})`);
-        grad.addColorStop(0.46, `hsla(148, 96%, 72%, ${a * 1.00})`);
-        grad.addColorStop(0.68, `hsla(156, 88%, 58%, ${a * 0.64})`);
-        grad.addColorStop(0.80, `hsla(200, 84%, 60%, ${a * 0.48})`);
-        grad.addColorStop(0.90, `hsla(255, 82%, 62%, ${a * 0.38})`);
-        grad.addColorStop(0.97, `hsla(280, 78%, 58%, ${a * 0.24})`);
-        grad.addColorStop(1.00, `hsla(290, 74%, 55%, 0)`);
-
-        ctx.fillStyle = grad;
-        ctx.fillRect(x, topY, stripW + 1, botY - topY);
-      }
-      ctx.filter = 'none';
-      ctx.restore();
-
+      drawStaticCabinAurora(this, ctx, W, H);
       drawStarField(ctx, W, H, 40, t);
 
       // Distant mountains and tiny cabin lights beyond the tree line
