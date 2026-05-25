@@ -10,6 +10,22 @@ const CFG = {
   shakeDelay: 380,
 };
 
+const SCENE_EVENTS = {
+  'Tiny Cabin': [
+    'deer',
+    'owl',
+    'rabbit',
+    'fox',
+    'shootingStar',
+    'pondCrack',
+    'snowSlip',
+    'branchDrop',
+    'windowShadow',
+    'chimneySpark',
+    'smokeBurst',
+  ],
+};
+
 const rand  = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const hash  = (n) => ((n * 2654435761) >>> 0) % 100;
@@ -692,10 +708,7 @@ const SCENES = [
       twigThicket(cx + S * 0.58, gy + S * 0.24, 0.72);
 
       // ── Timed events ──────────────────────────────────────────────────────
-      const EV_NAMES = [
-        'deer','owl','rabbit','fox','shootingStar',
-        'pondCrack','snowSlip','branchDrop','curtainShift','smokeBurst'
-      ];
+      const EV_NAMES = SCENE_EVENTS[this.name] || [];
       if (!this._ev) {
         const lf = {};
         EV_NAMES.forEach(n => lf[n] = t - 999);
@@ -1059,22 +1072,78 @@ const SCENES = [
           }
         }
 
-        // ── CURTAIN SHIFT ────────────────────────────────────────────────
-        else if (ev.active === 'curtainShift') {
-          const dur = 3.0;
+        // -- WINDOW SHADOW --------------------------------------------------
+        else if (ev.active === 'windowShadow') {
+          const dur = 4.0;
           if (et > dur) { ev.active = null; } else {
             if (!ev.data.init) {
               ev.data.init  = true;
               ev.data.which = Math.random() < 0.5 ? 0 : 1;
+              ev.data.dir   = Math.random() < 0.5 ? -1 : 1;
             }
             const owx = ev.data.which === 0 ? wx : wx2;
-            const dim = Math.sin((et / dur) * Math.PI) * 0.72;
-            ctx.fillStyle = `rgba(6,3,1,${dim})`;
+            const p = et / dur;
+            const fade = Math.sin(p * Math.PI);
+            const travel = (p - 0.5) * ww * 1.6 * ev.data.dir;
+            const sx = owx + ww * 0.5 + travel;
+            const sy = wy + wh * 0.58;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(owx, wy, ww, wh);
+            ctx.clip();
+            ctx.globalAlpha = fade * 0.64;
+            ctx.fillStyle = '#120804';
+            ctx.beginPath();
+            ctx.arc(sx, sy - wh * 0.22, wh * 0.20, 0, TAU);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(sx, sy + wh * 0.18, ww * 0.22, wh * 0.34, 0, 0, TAU);
+            ctx.fill();
+            ctx.globalAlpha = fade * 0.18;
+            ctx.fillStyle = '#080301';
             ctx.fillRect(owx, wy, ww, wh);
+            ctx.restore();
           }
         }
 
-        // ── SMOKE BURST ──────────────────────────────────────────────────
+        // -- CHIMNEY SPARK --------------------------------------------------
+        else if (ev.active === 'chimneySpark') {
+          const dur = 2.2;
+          if (et > dur) { ev.active = null; } else {
+            if (!ev.data.init) {
+              ev.data.init = true;
+              ev.data.sparks = Array.from({ length: 12 }, (_, i) => ({
+                x: rand(-S * 0.018, S * 0.018),
+                y: rand(-S * 0.015, S * 0.010),
+                vx: rand(-S * 0.045, S * 0.045),
+                vy: rand(-S * 0.34, -S * 0.18),
+                delay: i * 0.035,
+                hue: rand(28, 48),
+                size: rand(S * 0.006, S * 0.012),
+              }));
+            }
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            ev.data.sparks.forEach(spark => {
+              const p = clamp((et - spark.delay) / (dur - spark.delay), 0, 1);
+              if (p <= 0 || p >= 1) return;
+              const fade = p < 0.12 ? p / 0.12 : p > 0.72 ? (1 - p) / 0.28 : 1;
+              const sx = chx + S * 0.035 + spark.x + spark.vx * p;
+              const sy = chy - spark.size + spark.y + spark.vy * p + S * 0.16 * p * p;
+              ctx.globalAlpha = fade * 0.88;
+              ctx.fillStyle = `hsl(${spark.hue},100%,64%)`;
+              ctx.shadowBlur = 8;
+              ctx.shadowColor = `hsl(${spark.hue},100%,54%)`;
+              ctx.beginPath();
+              ctx.arc(sx, sy, spark.size * (1 - p * 0.35), 0, TAU);
+              ctx.fill();
+            });
+            ctx.restore();
+          }
+        }
+
+        // -- SMOKE BURST ----------------------------------------------------
         else if (ev.active === 'smokeBurst') {
           const dur = 5.0;
           if (et > dur) { ev.active = null; } else {
@@ -1154,18 +1223,21 @@ const SCENES = [
             const roofTopY = cby - rh + 2;
             const roofEdgeX = side < 0 ? cbx - S * 0.04 : cbx + cw + S * 0.04;
             const roofEdgeY = cby + 5;
-            const slideP = Math.min(1, p / 0.58);
+            const slideEnd = 0.58;
+            const slideP = Math.min(1, p / slideEnd);
             const clumpX = roofTopX + (roofEdgeX - roofTopX) * slideP;
             const clumpY = roofTopY + (roofEdgeY - roofTopY) * slideP;
-            const fallP = p > 0.46 ? (p - 0.46) / 0.54 : 0;
+            const fallP = p > slideEnd ? (p - slideEnd) / (1 - slideEnd) : 0;
             const alpha = p > 0.82 ? (1 - p) / 0.18 : 1;
 
             ctx.save();
             ctx.globalAlpha = alpha;
             ctx.fillStyle = 'rgba(236,246,252,0.96)';
-            ctx.beginPath();
-            ctx.ellipse(clumpX, clumpY, S * 0.050, S * 0.014, side * 0.50, 0, TAU);
-            ctx.fill();
+            if (p <= slideEnd) {
+              ctx.beginPath();
+              ctx.ellipse(clumpX, clumpY, S * 0.050, S * 0.014, side * 0.50, 0, TAU);
+              ctx.fill();
+            }
 
             if (fallP > 0) {
               for (let i = 0; i < 12; i++) {
@@ -1194,22 +1266,20 @@ const SCENES = [
                 ? { x: cx - S * 0.72, h: S * 0.65 }
                 : { x: cx + S * 0.74, h: S * 0.60 };
               ev.data.dropX = tree.x + rand(-tree.h * 0.035, tree.h * 0.035);
-              ev.data.dropY = gy - tree.h * 0.64;
+              ev.data.dropY = gy - tree.h * 0.72;
             }
             const p = et / dur;
-            const burst = p < 0.16 ? p / 0.16 : p > 0.76 ? (1 - p) / 0.24 : 1;
             const dx = ev.data.dropX;
             const dy = ev.data.dropY;
 
             ctx.save();
             ctx.fillStyle = 'rgba(234,244,252,0.94)';
             for (let i = 0; i < 18; i++) {
-              const lag = i * 0.024;
-              const fp = clamp((p - lag) / 0.72, 0, 1);
+              const fp = p;
               const sway = Math.sin(t * 2.2 + i * 1.9) * S * 0.012;
               const px = dx + sway + (i - 8.5) * S * 0.0026;
-              const py = dy + fp * fp * S * 0.30 + i * S * 0.002;
-              ctx.globalAlpha = burst * (1 - fp * 0.72);
+              const py = dy + fp * fp * (gy - dy) + i * S * 0.002;
+              ctx.globalAlpha = (p > 0.82 ? (1 - p) / 0.18 : 1) * (1 - fp * 0.72);
               ctx.beginPath(); ctx.arc(px, py, S * (0.007 + (i % 3) * 0.002), 0, TAU); ctx.fill();
             }
             ctx.globalAlpha = 1;
@@ -1721,6 +1791,7 @@ class Momentarium {
     this.hintShown    = true;
     this.safeTop      = 0;
     this.safeBot      = 0;
+    this.debugEventIdxByScene = Object.create(null);
 
     this.readSafeArea();
     this.resize();
@@ -1912,11 +1983,29 @@ class Momentarium {
     renderUI(ctx, W, H, this.sceneIdx, this.safeTop, this.safeBot);
   }
 
-  // Debug: force-start a named Tiny Cabin event immediately
-  triggerCabinEvent(name) {
-    if (this.sceneIdx !== 0) return;
-    const scene = SCENES[0];
-    const EV_NAMES = ['deer','owl','rabbit','fox','shootingStar','pondCrack','snowSlip','branchDrop','curtainShift','smokeBurst'];
+  getSceneEvents(sceneIdx = this.sceneIdx) {
+    return SCENE_EVENTS[SCENES[sceneIdx].name] || [];
+  }
+
+  getDebugEventIdx(sceneIdx = this.sceneIdx) {
+    const events = this.getSceneEvents(sceneIdx);
+    if (!events.length) return 0;
+    const key = SCENES[sceneIdx].name;
+    return clamp(this.debugEventIdxByScene[key] || 0, 0, events.length - 1);
+  }
+
+  setDebugEventIdx(sceneIdx, idx) {
+    const events = this.getSceneEvents(sceneIdx);
+    if (!events.length) return;
+    const key = SCENES[sceneIdx].name;
+    this.debugEventIdxByScene[key] = ((idx % events.length) + events.length) % events.length;
+  }
+
+  // Debug: force-start a named event for the active scene.
+  triggerSceneEvent(name) {
+    const scene = SCENES[this.sceneIdx];
+    const EV_NAMES = this.getSceneEvents();
+    if (!EV_NAMES.includes(name)) return;
     if (!scene._ev) {
       const lf = {};
       EV_NAMES.forEach(n => lf[n] = this.t - 999);
@@ -1931,6 +2020,39 @@ class Momentarium {
     ev.nextT             = this.t + 12 + Math.random() * 8;
   }
 
+  logSelectedSceneEvent() {
+    const scene = SCENES[this.sceneIdx];
+    const events = this.getSceneEvents();
+    if (!events.length) {
+      console.info(`${scene.name} has no debug events.`);
+      return;
+    }
+    const idx = this.getDebugEventIdx();
+    console.info(`${scene.name} debug event ${idx + 1}/${events.length}: ${events[idx]}`);
+  }
+
+  selectSceneDebugEvent(delta) {
+    const events = this.getSceneEvents();
+    if (!events.length) {
+      this.logSelectedSceneEvent();
+      return;
+    }
+    this.setDebugEventIdx(this.sceneIdx, this.getDebugEventIdx() + delta);
+    this.logSelectedSceneEvent();
+  }
+
+  triggerSelectedSceneEvent() {
+    const scene = SCENES[this.sceneIdx];
+    const events = this.getSceneEvents();
+    if (!events.length) {
+      this.logSelectedSceneEvent();
+      return;
+    }
+    const name = events[this.getDebugEventIdx()];
+    console.info(`Triggering ${scene.name} event: ${name}`);
+    this.triggerSceneEvent(name);
+  }
+
   loop(ts) {
     const dt = Math.min(50, ts - (this.lastTs || ts));
     this.lastTs = ts;
@@ -1942,16 +2064,26 @@ class Momentarium {
 
 window.addEventListener('load', () => {
   window._app = new Momentarium();
-  // Dev shortcut: press S to simulate a shake
-  // Debug keys: S = shake; 1–0 = trigger Tiny Cabin events
-  // 1=deer 2=owl 3=rabbit 4=fox 5=shootingStar
-  // 6=pondCrack 7=snowSlip 8=branchDrop 9=curtainShift 0=smokeBurst
-  const _cabinKeys = {
-    '1':'deer','2':'owl','3':'rabbit','4':'fox','5':'shootingStar',
-    '6':'pondCrack','7':'snowSlip','8':'branchDrop','9':'curtainShift','0':'smokeBurst',
-  };
+  // Debug keys: S = shake, [/] = select current scene event, Enter = trigger it.
+  window._app.logSelectedSceneEvent();
   window.addEventListener('keydown', e => {
-    if (e.key === 's' || e.key === 'S') { window._app.onShake(); return; }
-    if (_cabinKeys[e.key]) window._app.triggerCabinEvent(_cabinKeys[e.key]);
+    if (e.key === 's' || e.key === 'S') {
+      window._app.onShake();
+      return;
+    }
+    if (e.key === '[') {
+      e.preventDefault();
+      window._app.selectSceneDebugEvent(-1);
+      return;
+    }
+    if (e.key === ']') {
+      e.preventDefault();
+      window._app.selectSceneDebugEvent(1);
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      window._app.triggerSelectedSceneEvent();
+    }
   });
 });
