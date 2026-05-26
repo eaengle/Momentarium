@@ -1778,14 +1778,25 @@ class MomentariumApp {
     };
     if (typeof DeviceMotionEvent !== 'undefined' &&
         typeof DeviceMotionEvent.requestPermission === 'function') {
-      // iOS 13+: requestPermission must be called from a user gesture.
-      // We call it on first deliberate tap (via _stir) so the user understands the context.
+      const btn = document.getElementById('motion-btn');
+      const dismissBtn = () => {
+        if (!btn) return;
+        btn.classList.add('fade');
+        btn.addEventListener('transitionend', () => { btn.hidden = true; }, { once: true });
+      };
       this._ensureMotionPermission = () => {
         this._ensureMotionPermission = null;
         DeviceMotionEvent.requestPermission()
           .then(p => { if (p === 'granted') window.addEventListener('devicemotion', handle); })
           .catch(() => {});
+        dismissBtn();
       };
+      if (btn) {
+        btn.hidden = false;
+        btn.addEventListener('click', () => {
+          if (this._ensureMotionPermission) this._ensureMotionPermission();
+        }, { once: true });
+      }
     } else {
       window.addEventListener('devicemotion', handle);
     }

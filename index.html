@@ -51,10 +51,30 @@
       transition: opacity 2s ease;
     }
     #hint.fade { opacity: 0; }
+    #motion-btn {
+      position: fixed;
+      top: max(18px, calc(env(safe-area-inset-top) + 18px));
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(6, 8, 15, 0.55);
+      border: 1px solid rgba(160, 185, 230, 0.22);
+      border-radius: 20px;
+      color: rgba(160, 185, 230, 0.65);
+      font: 10px/1 -apple-system, system-ui, 'Helvetica Neue', sans-serif;
+      letter-spacing: 3.5px;
+      text-transform: uppercase;
+      padding: 10px 20px;
+      cursor: pointer;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.6s ease;
+    }
+    #motion-btn.fade { opacity: 0; pointer-events: none; }
   </style>
 </head>
 <body>
   <canvas id="c"></canvas>
+  <button id="motion-btn" hidden>enable shake</button>
   <p id="hint">swipe to explore &middot; tap to stir</p>
   <script src="app.js"></script>
   <script>
