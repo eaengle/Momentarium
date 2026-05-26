@@ -9,7 +9,7 @@ const CFG = {
   transitionMs:    400,
   swipeThreshold:  45,
   tapKickStrength: 6,
-  shakeThreshold:  13,
+  shakeThreshold:  8,
 };
 
 // ─── SCENE DEFINITIONS ────────────────────────────────────────────────────────
@@ -1722,6 +1722,7 @@ class MomentariumApp {
   }
 
   _stir() {
+    if (this._ensureMotionPermission) this._ensureMotionPermission();
     const group = this.overlays[SCENES[this.activeIdx].id] || {};
     for (const o of Object.values(group)) {
       if (o.kick) o.kick(CFG.tapKickStrength);
@@ -1777,11 +1778,14 @@ class MomentariumApp {
     };
     if (typeof DeviceMotionEvent !== 'undefined' &&
         typeof DeviceMotionEvent.requestPermission === 'function') {
-      this.canvas.addEventListener('touchstart', () => {
+      // iOS 13+: requestPermission must be called from a user gesture.
+      // We call it on first deliberate tap (via _stir) so the user understands the context.
+      this._ensureMotionPermission = () => {
+        this._ensureMotionPermission = null;
         DeviceMotionEvent.requestPermission()
           .then(p => { if (p === 'granted') window.addEventListener('devicemotion', handle); })
           .catch(() => {});
-      }, { once: true });
+      };
     } else {
       window.addEventListener('devicemotion', handle);
     }
