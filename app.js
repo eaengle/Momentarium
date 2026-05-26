@@ -21,7 +21,7 @@ const SCENES = [
       portrait:  'assets/scenes/tiny-cabin/background-portrait.png',
       landscape: 'assets/scenes/tiny-cabin/background-landscape.png',
     },
-    overlays:   ['snow', 'smoke', 'cabinEvents'],
+    overlays:   ['auroraShimmer', 'snow', 'smoke', 'cabinEvents'],
   },
   {
     id:         'beach',
@@ -1211,8 +1211,79 @@ class CabinEventsOverlay {
   }
 }
 
+// ─── TINY CABIN — AURORA SHIMMER ─────────────────────────────────────────────
+class AuroraShimmerOverlay {
+  constructor() {
+    this.bands   = null;
+    this._skyBot = 0;
+  }
+
+  init(W, H, img) {
+    this.W = W; this.H = H;
+    const L = W > H;
+    if (img) {
+      const pk = paintToCanvas(L ? 818 : 467, L ? 537 : 1046, img, W, H);
+      this._skyBot = pk.y * 0.90;
+    } else {
+      this._skyBot = H * (L ? 0.50 : 0.60);
+    }
+    if (!this.bands) {
+      this.bands = [
+        { rgb: [  0, 230, 120], yFrac: 0.10, hFrac: rand(0.14, 0.20), freq: rand(0.004, 0.010), ampFrac: rand(0.04, 0.08), phase: rand(0, TAU), drift: rand(-0.12, 0.12), alpha: rand(0.07, 0.11), pulse: rand(0.20, 0.50), pulsePhase: rand(0, TAU) },
+        { rgb: [  0, 210, 160], yFrac: 0.24, hFrac: rand(0.15, 0.22), freq: rand(0.005, 0.012), ampFrac: rand(0.05, 0.09), phase: rand(0, TAU), drift: rand(-0.10, 0.10), alpha: rand(0.06, 0.10), pulse: rand(0.18, 0.45), pulsePhase: rand(0, TAU) },
+        { rgb: [  0, 190, 215], yFrac: 0.38, hFrac: rand(0.16, 0.24), freq: rand(0.005, 0.011), ampFrac: rand(0.04, 0.08), phase: rand(0, TAU), drift: rand(-0.14, 0.14), alpha: rand(0.06, 0.09), pulse: rand(0.22, 0.55), pulsePhase: rand(0, TAU) },
+        { rgb: [ 60, 190, 255], yFrac: 0.52, hFrac: rand(0.13, 0.20), freq: rand(0.004, 0.009), ampFrac: rand(0.03, 0.07), phase: rand(0, TAU), drift: rand(-0.08, 0.08), alpha: rand(0.05, 0.08), pulse: rand(0.25, 0.60), pulsePhase: rand(0, TAU) },
+        { rgb: [170,  90, 255], yFrac: 0.64, hFrac: rand(0.12, 0.18), freq: rand(0.006, 0.013), ampFrac: rand(0.03, 0.06), phase: rand(0, TAU), drift: rand(-0.11, 0.11), alpha: rand(0.04, 0.07), pulse: rand(0.28, 0.65), pulsePhase: rand(0, TAU) },
+      ];
+    }
+  }
+
+  draw(ctx, W, H, t) {
+    if (!this.bands) return;
+    const sb = this._skyBot;
+    if (sb <= 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    const N = 40;
+    for (const b of this.bands) {
+      const pulse = 0.50 + 0.50 * Math.sin(t * b.pulse + b.pulsePhase);
+      const alpha = b.alpha * pulse;
+      if (alpha < 0.005) continue;
+
+      const by    = b.yFrac * sb;
+      const bh    = b.hFrac * sb;
+      const amp   = b.ampFrac * sb;
+      const phase = b.phase + t * b.drift;
+
+      ctx.beginPath();
+      for (let i = 0; i <= N; i++) {
+        const x = (i / N) * W;
+        const y = by + Math.sin(x * b.freq + phase) * amp;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      for (let i = N; i >= 0; i--) {
+        const x = (i / N) * W;
+        const y = by + bh + Math.sin(x * b.freq + phase + 1.2) * amp * 0.65;
+        ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+
+      const [r, g, bl] = b.rgb;
+      const grad = ctx.createLinearGradient(0, by - amp, 0, by + bh + amp);
+      grad.addColorStop(0,    `rgba(${r},${g},${bl},0)`);
+      grad.addColorStop(0.28, `rgba(${r},${g},${bl},${alpha.toFixed(3)})`);
+      grad.addColorStop(0.72, `rgba(${r},${g},${bl},${alpha.toFixed(3)})`);
+      grad.addColorStop(1,    `rgba(${r},${g},${bl},0)`);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
 // ─── OVERLAY REGISTRY ─────────────────────────────────────────────────────────
 const OVERLAY_REGISTRY = {
+  auroraShimmer:   (W, H, img) => { const o = new AuroraShimmerOverlay();   o.init(W, H, img); return o; },
   snow:            (W, H, img) => { const o = new SnowOverlay();            o.init(W, H, img); return o; },
   smoke:           (W, H, img) => { const o = new SmokeOverlay().setChimneyPx({ px: 540, py: 1058 }, { px: 890, py: 552 }); o.init(W, H, img); return o; },
   cabinEvents:     (W, H, img) => { const o = new CabinEventsOverlay();     o.init(W, H, img); return o; },
