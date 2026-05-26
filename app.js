@@ -21,7 +21,7 @@ const SCENES = [
       portrait:  'assets/scenes/tiny-cabin/background-portrait.png',
       landscape: 'assets/scenes/tiny-cabin/background-landscape.png',
     },
-    overlays:   ['auroraShimmer', 'windowGlow', 'snow', 'smoke', 'cabinEvents'],
+    overlays:   ['stars', 'auroraShimmer', 'windowGlow', 'snow', 'smoke', 'cabinEvents'],
   },
   {
     id:         'beach',
@@ -68,6 +68,25 @@ async function preloadDeerSprites() {
       deerSprites[n] = await loadImage(`${base}${n}.png`);
     })
   );
+}
+
+const owlSprites = {};
+async function preloadOwlSprites() {
+  owlSprites['swoop'] = await loadImage('assets/scenes/tiny-cabin/owl/swoop.png');
+}
+
+const rabbitSprites = {};
+async function preloadRabbitSprites() {
+  await Promise.all(
+    ['hop', 'still'].map(async n => {
+      rabbitSprites[n] = await loadImage(`assets/scenes/tiny-cabin/rabbit/${n}.png`);
+    })
+  );
+}
+
+let windowShadowImg = null;
+async function preloadWindowShadow() {
+  windowShadowImg = await loadImage('assets/scenes/tiny-cabin/window-shadow.png');
 }
 
 // ─── IMAGE COVER HELPER ───────────────────────────────────────────────────────
@@ -608,6 +627,7 @@ class CabinEventsOverlay {
     const po = p2c(...(L ? [568,  849] : [333, 1494]));
 
     this.gy        = gd.y + this.S * 0.08;
+    this.doorY     = gd.y;
     this.chx       = ch.x;
     this.chy       = ch.y;
     this.roofPeakX = pk.x;
@@ -615,8 +635,8 @@ class CabinEventsOverlay {
     this.roofLX    = el.x;
     this.roofRX    = er.x;
     this.roofBaseY = (el.y + er.y) * 0.5;
-    this.winW      = W * (L ? 0.052 : 0.065);
-    this.winH      = H * (L ? 0.058 : 0.065);
+    this.winW      = W * (L ? 0.026 : 0.033);
+    this.winH      = H * (L ? 0.030 : 0.032);
     this.winLX     = wl.x - this.winW * 0.5;
     this.winRX     = wr.x - this.winW * 0.5;
     this.winY      = (wl.y + wr.y) * 0.5 - this.winH * 0.5;
@@ -751,14 +771,40 @@ class CabinEventsOverlay {
     } else if (ev.active === 'smokeBurst') {
       const dur = 5.0;
       if (et > dur) { ev.active = null; } else {
+        if (!ev.data.init) {
+          ev.data.init  = true;
+          ev.data.puffs = Array.from({ length: 12 }, (_, i) => ({
+            phase:  i / 12,
+            vx:     rand(-2, 3),
+            warm:   rand(0.3, 0.9),
+            wobble: rand(0, TAU),
+          }));
+        }
         const inten = et < 0.6 ? et / 0.6 : et > 3.5 ? (dur - et) / 1.5 : 1;
-        for (let i = 0; i < 10; i++) {
-          const p  = (t * 0.9 + i * 0.21) % 2.4;
-          const sx = chx + Math.sin(t * 0.95 + i * 1.5) * S * 0.07;
-          const sy = chy - p * S * 0.62;
-          ctx.globalAlpha = (1 - p / 2.4) * 0.50 * inten;
-          ctx.fillStyle   = '#c8c8c8';
-          ctx.beginPath(); ctx.arc(sx, sy, S * 0.044 + p * S * 0.09, 0, TAU); ctx.fill();
+        for (const pf of ev.data.puffs) {
+          const cycleDur = 2.4;
+          const age  = (et * 0.9 + pf.phase * cycleDur) % cycleDur;
+          const prog = age / cycleDur;
+          let fade;
+          if (prog < 0.12)      fade = prog / 0.12;
+          else if (prog < 0.58) fade = 1;
+          else                  fade = 1 - (prog - 0.58) / 0.42;
+          const alpha = 0.50 * fade * fade * inten;
+          if (alpha < 0.003) continue;
+          const sx = chx + Math.sin(t * 0.95 + pf.wobble) * S * 0.07 + pf.vx * prog * 0.5;
+          const sy = chy - prog * S * 0.62;
+          const sz = S * 0.044 + prog * S * 0.09;
+          // dark charcoal — slightly warm near chimney, cooling to near-black as it rises
+          const w  = pf.warm * Math.max(0, 1 - prog * 0.75);
+          const pr = Math.round(32 + w * 14);
+          const pg = Math.round(26 + w * 10);
+          const pb = Math.round(22 + w *  6);
+          const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, sz);
+          grad.addColorStop(0,    `rgba(${pr},${pg},${pb},${Math.min(0.999, alpha * 1.7).toFixed(3)})`);
+          grad.addColorStop(0.45, `rgba(${pr},${pg},${pb},${alpha.toFixed(3)})`);
+          grad.addColorStop(1,    `rgba(${pr},${pg},${pb},0)`);
+          ctx.fillStyle = grad;
+          ctx.beginPath(); ctx.arc(sx, sy, sz, 0, TAU); ctx.fill();
         }
       }
 
@@ -819,7 +865,8 @@ class CabinEventsOverlay {
         const fallP    = p > slideEnd ? (p - slideEnd) / (1 - slideEnd) : 0;
         const alpha    = p > 0.82 ? (1 - p) / 0.18 : 1;
         ctx.globalAlpha = alpha;
-        ctx.fillStyle   = 'rgba(236,246,252,0.96)';
+        // sliding clump — slightly muted, cool blue-white like painted snow
+        ctx.fillStyle = 'rgba(208,228,242,0.80)';
         if (p <= slideEnd) {
           ctx.beginPath();
           ctx.ellipse(clumpX, clumpY, S * 0.050, S * 0.014, side * 0.50, 0, TAU);
@@ -829,13 +876,18 @@ class CabinEventsOverlay {
           for (let i = 0; i < 12; i++) {
             const fp = Math.min(1, fallP + i * 0.025);
             const px = edgeX + side * S * (0.025 + i * 0.006) + Math.sin(i * 1.7) * S * 0.018;
-            const py = this.roofBaseY + fp * fp * S * 0.34 + i * S * 0.004;
-            ctx.globalAlpha = alpha * (1 - fp) * 0.92;
+            const py = this.roofBaseY + fp * fp * (this.doorY - this.roofBaseY) + i * S * 0.004;
+            // vary warmth per particle — some cool blue, some slightly warm cream
+            const warm = (i % 3) * 10;
+            ctx.fillStyle = `rgba(${205 + warm},${226},${242 - warm * 0.5},${0.65 + (i % 2) * 0.12})`;
+            ctx.globalAlpha = alpha * (1 - fp) * 0.88;
             ctx.beginPath(); ctx.arc(px, py, S * (0.010 + (i % 3) * 0.003), 0, TAU); ctx.fill();
           }
+          const splatP = Math.max(0, (fallP - 0.82) / 0.18);
+          const ry = S * 0.024 * splatP;
           ctx.globalAlpha = alpha;
           ctx.beginPath();
-          ctx.ellipse(edgeX + side * S * 0.095, gy - S * 0.004, S * 0.13 * fallP, S * 0.024 * fallP, 0, 0, TAU);
+          ctx.ellipse(edgeX + side * S * 0.095, this.doorY - ry, S * 0.13 * splatP, ry, 0, 0, TAU);
           ctx.fill();
         }
       }
@@ -852,11 +904,12 @@ class CabinEventsOverlay {
         }
         const p  = et / dur;
         const dx = ev.data.dropX, dy = ev.data.dropY;
-        ctx.fillStyle = 'rgba(234,244,252,0.94)';
         for (let i = 0; i < 18; i++) {
           const sway = Math.sin(t * 2.2 + i * 1.9) * S * 0.012;
           const px   = dx + sway + (i - 8.5) * S * 0.0026;
           const py   = dy + p * p * (gy - dy) + i * S * 0.002;
+          const warm = (i % 3) * 9;
+          ctx.fillStyle   = `rgba(${204 + warm},${225},${240 - warm * 0.4},${0.62 + (i % 2) * 0.14})`;
           ctx.globalAlpha = (p > 0.82 ? (1 - p) / 0.18 : 1) * (1 - p * 0.72);
           ctx.beginPath(); ctx.arc(px, py, S * (0.007 + (i % 3) * 0.002), 0, TAU); ctx.fill();
         }
@@ -864,58 +917,66 @@ class CabinEventsOverlay {
 
     // ── WINDOW SHADOW ──────────────────────────────────────────────────────────
     } else if (ev.active === 'windowShadow') {
-      const dur = 4.0;
+      const dur = 5.0;
       if (et > dur) { ev.active = null; } else {
         if (!ev.data.init) {
           ev.data.init  = true;
           ev.data.which = Math.random() < 0.5 ? 0 : 1;
-          ev.data.wdir  = Math.random() < 0.5 ? -1 : 1;
         }
         const owx = ev.data.which === 0 ? this.winLX : this.winRX;
         const ww  = this.winW, wh = this.winH, wy = this.winY;
-        const p      = et / dur;
-        const fade   = Math.sin(p * Math.PI);
-        const travel = (p - 0.5) * ww * 1.6 * ev.data.wdir;
-        const sx     = owx + ww * 0.5 + travel;
-        const sy     = wy + wh * 0.58;
-        ctx.save();
-        ctx.beginPath(); ctx.rect(owx, wy, ww, wh); ctx.clip();
-        ctx.globalAlpha = fade * 0.64;
-        ctx.fillStyle   = '#120804';
-        ctx.beginPath(); ctx.arc(sx, sy - wh * 0.22, wh * 0.20, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(sx, sy + wh * 0.18, ww * 0.22, wh * 0.34, 0, 0, TAU); ctx.fill();
-        ctx.globalAlpha = fade * 0.18;
-        ctx.fillStyle   = '#080301';
-        ctx.fillRect(owx, wy, ww, wh);
-        ctx.restore();
+        const p    = et / dur;
+        const fade = Math.sin(p * Math.PI);
+        if (windowShadowImg && fade >= 0.005) {
+          // scale up in landscape so the figure is as prominent as in portrait
+          const L     = W > H;
+          const scale = L ? 1.3 : 1.5;
+          const ir    = windowShadowImg.width / windowShadowImg.height;
+          const wr    = ww / wh;
+          let dw, dh;
+          if (ir > wr) { dw = ww * scale; dh = dw / ir; }
+          else         { dh = wh * scale; dw = dh * ir; }
+          const dx = owx + (ww - dw) * 0.5;
+          // bottom-anchored, with extra downward push in landscape
+          const dy = wy + wh - dh + (L ? wh * 0.25 : 0);
+          ctx.save();
+          ctx.beginPath(); ctx.rect(owx, wy, ww, wh); ctx.clip();
+          // multiply makes white pixels transparent, black pixels stay black
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.globalAlpha = fade * 0.55;
+          ctx.drawImage(windowShadowImg, dx, dy, dw, dh);
+          ctx.restore();
+        }
       }
 
     // ── RABBIT ─────────────────────────────────────────────────────────────────
     } else if (ev.active === 'rabbit') {
-      const dur = 6;
+      const dur = 9;
       if (et > dur) { ev.active = null; } else {
-        const p      = et / dur;
-        const startX = ev.dir > 0 ? -S * 0.08 : W + S * 0.08;
-        const endX   = ev.dir > 0 ? W + S * 0.08 : -S * 0.08;
-        const sz     = S * 0.055;
-        const rx     = startX + (endX - startX) * p;
-        const hop    = et * 5.5;
-        const inAir  = Math.abs(Math.sin(hop)) > 0.1;
-        const ry     = gy - Math.abs(Math.sin(hop)) * sz * 1.05;
-        ctx.globalAlpha = p < 0.08 ? p / 0.08 : p > 0.92 ? (1 - p) / 0.08 : 1;
-        ctx.save();
-        ctx.translate(rx, ry);
-        ctx.scale(ev.dir * (inAir ? 1.0 : 1.26), inAir ? 1.0 : 0.74);
-        ctx.fillStyle = '#cde0f0';
-        ctx.beginPath(); ctx.ellipse(0, 0, sz*.50, sz*.34, 0.12, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(sz*.38, -sz*.16, sz*.25, sz*.21, -0.18, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(sz*.28, -sz*.50, sz*.07, sz*.22, -0.12, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(sz*.43, -sz*.52, sz*.07, sz*.22,  0.14, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#1a0808';
-        ctx.beginPath(); ctx.arc(sz*.50, -sz*.20, sz*.055, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#e8f2ff';
-        ctx.beginPath(); ctx.arc(-sz*.48, sz*.05, sz*.13, 0, TAU); ctx.fill();
-        ctx.restore();
+        const p         = et / dur;
+        const startX    = ev.dir > 0 ? -S * 0.08 : W + S * 0.08;
+        const endX      = ev.dir > 0 ? W + S * 0.08 : -S * 0.08;
+        const sz        = S * 0.055;
+        const hopPeriod = 0.75;
+        const airFrac   = 0.58;
+        const tc        = (et % hopPeriod) / hopPeriod;
+        const inAir     = tc < airFrac;
+        const airElapsed = Math.floor(et / hopPeriod) * airFrac * hopPeriod
+                         + Math.min(et % hopPeriod, airFrac * hopPeriod);
+        const rx     = startX + (endX - startX) * Math.min(1, airElapsed / (dur * airFrac));
+        const ry     = gy - (inAir ? Math.sin((tc / airFrac) * Math.PI) * sz * 1.05 : 0);
+        const fa     = p < 0.08 ? p / 0.08 : p > 0.92 ? (1 - p) / 0.08 : 1;
+        const frame  = rabbitSprites[inAir ? 'hop' : 'still'];
+        if (frame) {
+          const drawH = sz * 1.2;
+          const drawW = drawH * (frame.naturalWidth / frame.naturalHeight);
+          ctx.save();
+          ctx.globalAlpha = fa;
+          ctx.translate(rx, ry);
+          if (ev.dir > 0) ctx.scale(-1, 1);
+          ctx.drawImage(frame, -drawW * 0.5, inAir ? -drawH * 0.5 : -drawH * 0.9, drawW, drawH);
+          ctx.restore();
+        }
       }
 
     // ── FOX ────────────────────────────────────────────────────────────────────
@@ -1202,7 +1263,19 @@ class CabinEventsOverlay {
           const owlX = perchX + (W - perchX + sz * 2) * ease;
           const owlY = perchY * (1-ease) + (this.roofPeakY - sz*.85 + S*.06) * ease - Math.sin(q * Math.PI) * S*.14;
           const edgeFade = owlX > W*.88 ? Math.max(0, 1 - (owlX - W*.88) / (sz * 3)) : 1;
-          flyingOwl(owlX, owlY, et * 2.15, 1, -.10 - ease * .10, edgeFade, 'departing');
+          const frame = owlSprites['swoop'];
+          if (frame) {
+            const drawH = sz * 2.3;
+            const drawW = drawH * (frame.naturalWidth / frame.naturalHeight);
+            ctx.save();
+            ctx.globalAlpha = edgeFade;
+            ctx.translate(owlX, owlY);
+            ctx.rotate(-.10 - ease * .10);
+            ctx.drawImage(frame, -drawW * 0.5, -drawH * 0.5, drawW, drawH);
+            ctx.restore();
+          } else {
+            flyingOwl(owlX, owlY, et * 2.15, 1, -.10 - ease * .10, edgeFade, 'departing');
+          }
         }
       }
     }
@@ -1351,8 +1424,87 @@ class WindowGlowOverlay {
   }
 }
 
+// ─── TINY CABIN — STARS TWINKLE ──────────────────────────────────────────────
+class StarsTwinkleOverlay {
+  constructor() { this.stars = null; this._skyBot = 0; }
+
+  init(W, H, img) {
+    this.W = W; this.H = H;
+    const L = W > H;
+    if (img) {
+      // Anchor to the highest tree top — that's the true sky/silhouette boundary
+      // Portrait: left tree top (190, 926); Landscape: right tree top (1504, 315)
+      const tt = paintToCanvas(L ? 1504 : 190, L ? 315 : 926, img, W, H);
+      this._skyBot = tt.y * 0.96;
+    } else {
+      this._skyBot = H * (L ? 0.36 : 0.50);
+    }
+    if (!this.stars) {
+      // Seed once — normalized coords so stars scale with viewport across orientations
+      this.stars = [
+        // 5 prominent "focal" stars
+        ...Array.from({ length: 5 }, () => ({
+          nx: Math.random(), ny: Math.random() * 0.82,
+          r: rand(1.8, 3.0), f1: rand(0.20, 0.58), f2: rand(1.20, 2.60),
+          ph1: rand(0, TAU), ph2: rand(0, TAU), base: rand(0.65, 0.90),
+          rgb: Math.random() < 0.30 ? [212, 228, 255] : [255, 253, 242],
+        })),
+        // 50 background stars
+        ...Array.from({ length: 50 }, () => ({
+          nx: Math.random(), ny: Math.random() * 0.97,
+          r: rand(0.5, 1.6), f1: rand(0.28, 1.10), f2: rand(1.60, 4.00),
+          ph1: rand(0, TAU), ph2: rand(0, TAU), base: rand(0.30, 0.75),
+          rgb: Math.random() < 0.18 ? [200, 220, 255]
+             : Math.random() < 0.10 ? [255, 228, 168]
+             : [255, 253, 242],
+        })),
+      ];
+    }
+  }
+
+  update(dt, t) {}
+
+  draw(ctx, W, H, t) {
+    if (!this.stars) return;
+    const sb = this._skyBot;
+    if (sb <= 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    for (const s of this.stars) {
+      const sx = s.nx * W;
+      const sy = s.ny * sb;
+
+      // Two incommensurate frequencies for organic, non-periodic twinkle
+      const tw = 0.50 + 0.30 * Math.sin(t * s.f1 + s.ph1)
+                      + 0.20 * Math.sin(t * s.f2 + s.ph2);
+      const brightness = clamp(s.base * tw, 0, 1);
+      if (brightness < 0.02) continue;
+
+      const [r, g, b] = s.rgb;
+
+      // Soft glow corona
+      const glowR = s.r * 4.5;
+      const ga    = brightness * 0.38;
+      const glow  = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR);
+      glow.addColorStop(0,    `rgba(${r},${g},${b},${Math.min(0.999, ga * 1.7).toFixed(3)})`);
+      glow.addColorStop(0.40, `rgba(${r},${g},${b},${ga.toFixed(3)})`);
+      glow.addColorStop(1,    `rgba(${r},${g},${b},0)`);
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(sx, sy, glowR, 0, TAU); ctx.fill();
+
+      // Sharp center point
+      ctx.fillStyle = `rgba(${r},${g},${b},${Math.min(0.999, brightness * 0.85).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(sx, sy, s.r, 0, TAU); ctx.fill();
+    }
+
+    ctx.restore();
+  }
+}
+
 // ─── OVERLAY REGISTRY ─────────────────────────────────────────────────────────
 const OVERLAY_REGISTRY = {
+  stars:           (W, H, img) => { const o = new StarsTwinkleOverlay();     o.init(W, H, img); return o; },
   auroraShimmer:   (W, H, img) => { const o = new AuroraShimmerOverlay();   o.init(W, H, img); return o; },
   windowGlow:      (W, H, img) => { const o = new WindowGlowOverlay();      o.init(W, H, img); return o; },
   snow:            (W, H, img) => { const o = new SnowOverlay();            o.init(W, H, img); return o; },
@@ -1446,7 +1598,7 @@ class MomentariumApp {
     this._initInput();
     this._initShake();
 
-    Promise.all([preloadScenes(SCENES), preloadDeerSprites()]).then(() => {
+    Promise.all([preloadScenes(SCENES), preloadDeerSprites(), preloadOwlSprites(), preloadRabbitSprites(), preloadWindowShadow()]).then(() => {
       this._buildOverlays();
       requestAnimationFrame(t => this._loop(t));
     });
