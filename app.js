@@ -1303,14 +1303,20 @@ class WindowGlowOverlay {
 
   draw(ctx, W, H, t) {
     if (!this._winLX) return;
-    // Two-frequency organic pulse — avoids mechanical feel
-    const pulse = 0.80 + 0.12 * Math.sin(t * 0.18 + this._phase)
-                       + 0.08 * Math.sin(t * 0.43 + this._phase * 1.7);
+    // Four-frequency candle flicker — incommensurate frequencies produce irregular beat
+    const flicker = ph =>
+        0.65
+      + 0.14 * Math.sin(t * 0.38  + ph)
+      + 0.11 * Math.sin(t * 2.30  + ph * 1.4)
+      + 0.07 * Math.sin(t * 6.10  + ph * 2.3)
+      + 0.04 * Math.sin(t * 13.70 + ph * 4.1);
     const { _winLX: lx, _winRX: rx, _winCY: cy, _winW: ww, _winH: wh } = this;
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
 
-    for (const cx of [lx, rx]) {
+    // Each window gets its own phase so they flicker independently
+    for (const [cx, ph] of [[lx, this._phase], [rx, this._phase + 2.1]]) {
+      const pulse = flicker(ph);
       // Amber radial halo centered on each window
       const glowR = ww * 2.6;
       const ga    = 0.13 * pulse;
