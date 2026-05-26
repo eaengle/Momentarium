@@ -1764,6 +1764,12 @@ class MomentariumApp {
 
   _initShake() {
     let lastMag = 0, lastShakeMs = 0;
+    let listening = false;
+    const btn = document.getElementById('motion-btn');
+    const setButtonText = text => {
+      if (!btn) return;
+      btn.textContent = text;
+    };
     const handle = e => {
       const a = e.accelerationIncludingGravity || e.acceleration;
       if (!a) return;
@@ -1776,29 +1782,52 @@ class MomentariumApp {
         this.onShake();
       }
     };
+    const startListening = () => {
+      if (listening) return;
+      listening = true;
+      window.addEventListener('devicemotion', handle);
+    };
+    if (!window.isSecureContext) {
+      if (btn && (navigator.maxTouchPoints > 0 || 'ontouchstart' in window)) {
+        setButtonText('shake needs https');
+        btn.hidden = false;
+      }
+      return;
+    }
     if (typeof DeviceMotionEvent !== 'undefined' &&
         typeof DeviceMotionEvent.requestPermission === 'function') {
-      const btn = document.getElementById('motion-btn');
       const dismissBtn = () => {
         if (!btn) return;
         btn.classList.add('fade');
         btn.addEventListener('transitionend', () => { btn.hidden = true; }, { once: true });
       };
-      this._ensureMotionPermission = () => {
-        this._ensureMotionPermission = null;
+      const requestMotionPermission = event => {
+        if (event) event.preventDefault();
+        if (this._requestingMotionPermission) return;
+        this._requestingMotionPermission = true;
+        setButtonText('enabling shake');
         DeviceMotionEvent.requestPermission()
-          .then(p => { if (p === 'granted') window.addEventListener('devicemotion', handle); })
-          .catch(() => {});
-        dismissBtn();
+          .then(permission => {
+            if (permission === 'granted') {
+              startListening();
+              dismissBtn();
+              return;
+            }
+            this._requestingMotionPermission = false;
+            setButtonText('shake denied');
+          })
+          .catch(() => {
+            this._requestingMotionPermission = false;
+            setButtonText('enable shake');
+          });
       };
       if (btn) {
         btn.hidden = false;
-        btn.addEventListener('click', () => {
-          if (this._ensureMotionPermission) this._ensureMotionPermission();
-        }, { once: true });
+        btn.addEventListener('touchend', requestMotionPermission, { passive: false });
+        btn.addEventListener('click', requestMotionPermission);
       }
     } else {
-      window.addEventListener('devicemotion', handle);
+      startListening();
     }
   }
 
