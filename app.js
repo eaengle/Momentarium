@@ -21,7 +21,7 @@ const SCENES = [
       portrait:  'assets/scenes/tiny-cabin/background-portrait.png',
       landscape: 'assets/scenes/tiny-cabin/background-landscape.png',
     },
-    overlays:   ['auroraShimmer', 'snow', 'smoke', 'cabinEvents'],
+    overlays:   ['auroraShimmer', 'windowGlow', 'snow', 'smoke', 'cabinEvents'],
   },
   {
     id:         'beach',
@@ -1281,9 +1281,74 @@ class AuroraShimmerOverlay {
   }
 }
 
+// ─── TINY CABIN — WINDOW GLOW ────────────────────────────────────────────────
+class WindowGlowOverlay {
+  constructor() {
+    this._phase = rand(0, TAU);
+  }
+
+  init(W, H, img) {
+    this.W = W; this.H = H;
+    const L = W > H;
+    if (!img) return;
+    const p2c = (px, py) => paintToCanvas(px, py, img, W, H);
+    const wl = p2c(...(L ? [761, 688] : [398, 1237]));
+    const wr = p2c(...(L ? [877, 688] : [543, 1236]));
+    this._winW  = W * (L ? 0.052 : 0.065);
+    this._winH  = H * (L ? 0.058 : 0.065);
+    this._winLX = wl.x;
+    this._winRX = wr.x;
+    this._winCY = (wl.y + wr.y) * 0.5;
+  }
+
+  draw(ctx, W, H, t) {
+    if (!this._winLX) return;
+    // Two-frequency organic pulse — avoids mechanical feel
+    const pulse = 0.80 + 0.12 * Math.sin(t * 0.18 + this._phase)
+                       + 0.08 * Math.sin(t * 0.43 + this._phase * 1.7);
+    const { _winLX: lx, _winRX: rx, _winCY: cy, _winW: ww, _winH: wh } = this;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    for (const cx of [lx, rx]) {
+      // Amber radial halo centered on each window
+      const glowR = ww * 2.6;
+      const ga    = 0.13 * pulse;
+      const halo  = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR);
+      halo.addColorStop(0,    `rgba(255,195, 75,${(ga * 1.9).toFixed(3)})`);
+      halo.addColorStop(0.30, `rgba(255,165, 45,${ga.toFixed(3)})`);
+      halo.addColorStop(0.65, `rgba(220,115, 18,${(ga * 0.32).toFixed(3)})`);
+      halo.addColorStop(1,    'rgba(200,80,0,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(cx, cy, glowR, 0, TAU); ctx.fill();
+
+      // Warm cone of light spilling down onto the snow below the window
+      const spillTop  = cy + wh * 0.5;
+      const spillLen  = wh * 3.8 * pulse;
+      const spillBot  = spillTop + spillLen;
+      const spreadTop = ww * 0.38;
+      const spreadBot = ww * 1.9 * pulse;
+      const sa        = 0.048 * pulse;
+      const spill = ctx.createLinearGradient(cx, spillTop, cx, spillBot);
+      spill.addColorStop(0, `rgba(255,175,55,${sa.toFixed(3)})`);
+      spill.addColorStop(1, 'rgba(255,130,20,0)');
+      ctx.fillStyle = spill;
+      ctx.beginPath();
+      ctx.moveTo(cx - spreadTop, spillTop);
+      ctx.lineTo(cx + spreadTop, spillTop);
+      ctx.lineTo(cx + spreadBot, spillBot);
+      ctx.lineTo(cx - spreadBot, spillBot);
+      ctx.closePath(); ctx.fill();
+    }
+
+    ctx.restore();
+  }
+}
+
 // ─── OVERLAY REGISTRY ─────────────────────────────────────────────────────────
 const OVERLAY_REGISTRY = {
   auroraShimmer:   (W, H, img) => { const o = new AuroraShimmerOverlay();   o.init(W, H, img); return o; },
+  windowGlow:      (W, H, img) => { const o = new WindowGlowOverlay();      o.init(W, H, img); return o; },
   snow:            (W, H, img) => { const o = new SnowOverlay();            o.init(W, H, img); return o; },
   smoke:           (W, H, img) => { const o = new SmokeOverlay().setChimneyPx({ px: 540, py: 1058 }, { px: 890, py: 552 }); o.init(W, H, img); return o; },
   cabinEvents:     (W, H, img) => { const o = new CabinEventsOverlay();     o.init(W, H, img); return o; },
