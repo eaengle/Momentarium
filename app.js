@@ -81,6 +81,34 @@ function drawImageCover(ctx, img, W, H) {
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
 }
 
+// ─── PAINT-SPACE COORDINATE TRANSFORMS ───────────────────────────────────────
+// These two functions are the inverse of each other through drawImageCover's
+// crop math. Use paintToCanvas for all overlay anchor positioning so coords
+// track the correct painting pixel at any viewport size or orientation.
+
+function _coverParams(img, W, H) {
+  const ir = img.width / img.height;
+  const vr = W / H;
+  let sx = 0, sy = 0, sw = img.width, sh = img.height;
+  if (ir > vr) { sw = img.height * vr; sx = (img.width  - sw) / 2; }
+  else         { sh = img.width  / vr; sy = (img.height - sh) / 2; }
+  return { sx, sy, sw, sh };
+}
+
+// paintToCanvas: painting pixel (px,py) → canvas point {x,y}
+function paintToCanvas(px, py, img, W, H) {
+  if (!img) return { x: px / 100 * W, y: py / 100 * H };
+  const { sx, sy, sw, sh } = _coverParams(img, W, H);
+  return { x: (px - sx) / sw * W, y: (py - sy) / sh * H };
+}
+
+// canvasToPaint: canvas point (cx,cy) → painting pixel {px,py}
+// Used by the ?debug measurement tool — click a feature, get its paint coords.
+function canvasToPaint(cx, cy, img, W, H) {
+  const { sx, sy, sw, sh } = _coverParams(img, W, H);
+  return { px: Math.round(sx + (cx / W) * sw), py: Math.round(sy + (cy / H) * sh) };
+}
+
 // ─── OVERLAY SYSTEMS ──────────────────────────────────────────────────────────
 // Shared interface: init(W,H) · stir?(strength) · update(dt,t) · draw(ctx,W,H,t)
 
@@ -165,12 +193,24 @@ class SmokeOverlay {
     return this;
   }
 
-  init(W, H) {
-    this.W = W; this.H = H;
-    const pos = W > H ? (this._chimneyLandscape || { cx: 0.525, cy: 0.293 })
-                      : (this._chimneyPortrait  || { cx: 0.525, cy: 0.293 });
-    this.cx = W * pos.cx;
-    this.cy = H * pos.cy;
+  setChimneyPx(portrait, landscape) {
+    this._chimneyPxPortrait  = portrait;
+    this._chimneyPxLandscape = landscape || portrait;
+    return this;
+  }
+
+  init(W, H, img) {
+    this.W = W; this.H = H; this._img = img || null;
+    const L = W > H;
+    if (img && this._chimneyPxPortrait) {
+      const { px, py } = L ? this._chimneyPxLandscape : this._chimneyPxPortrait;
+      const pt = paintToCanvas(px, py, img, W, H);
+      this.cx = pt.x; this.cy = pt.y;
+    } else {
+      const pos = L ? (this._chimneyLandscape || { cx: 0.525, cy: 0.293 })
+                    : (this._chimneyPortrait  || { cx: 0.525, cy: 0.293 });
+      this.cx = W * pos.cx; this.cy = H * pos.cy;
+    }
     this.puffs = Array.from({ length: 26 }, (_, i) => this._spawn(i / 26));
   }
 
@@ -549,33 +589,45 @@ const EV_NAMES_CABIN = [
 class CabinEventsOverlay {
   constructor() { this._ev = null; }
 
-  init(W, H) {
-    this.W = W; this.H = H;
+  init(W, H, img) {
+    this.W = W; this.H = H; this._img = img || null;
     this.S = Math.min(W, H) * 0.46;
     const L = W > H;
+    const p2c = (px, py) => paintToCanvas(px, py, img, W, H);
 
-    // Anchor coords tuned to the painting (portrait vs landscape)
-    this.gy        = H * (L ? 0.808 : 0.800);
-    this.chx       = W * (L ? 0.539 : 0.563);
-    this.chy       = H * (L ? 0.457 : 0.550);
-    this.roofPeakX = W * (L ? 0.500 : 0.550);
-    this.roofPeakY = H * (L ? 0.418 : 0.492);
-    this.roofLX    = W * (L ? 0.416 : 0.438);
-    this.roofRX    = W * (L ? 0.584 : 0.663);
-    this.roofBaseY = H * (L ? 0.465 : 0.563);
+    // Measured paint-pixel anchors — portrait (941×1672) / landscape (1672×941)
+    const ch = p2c(...(L ? [890,  552] : [540, 1058]));
+    const pk = p2c(...(L ? [818,  537] : [467, 1046]));
+    const el = p2c(...(L ? [696,  649] : [340, 1185]));
+    const er = p2c(...(L ? [941,  647] : [605, 1184]));
+    const wl = p2c(...(L ? [761,  688] : [398, 1237]));
+    const wr = p2c(...(L ? [877,  688] : [543, 1236]));
+    const tl = p2c(...(L ? [219,  334] : [190,  926]));
+    const tr = p2c(...(L ? [1504, 315] : [773,  949]));
+    const gd = p2c(...(L ? [821,  750] : [477, 1322]));
+    const po = p2c(...(L ? [568,  849] : [333, 1494]));
+
+    this.gy        = gd.y;
+    this.chx       = ch.x;
+    this.chy       = ch.y;
+    this.roofPeakX = pk.x;
+    this.roofPeakY = pk.y;
+    this.roofLX    = el.x;
+    this.roofRX    = er.x;
+    this.roofBaseY = (el.y + er.y) * 0.5;
     this.winW      = W * (L ? 0.052 : 0.065);
     this.winH      = H * (L ? 0.058 : 0.065);
-    this.winLX     = W * (L ? 0.402 : 0.426);
-    this.winRX     = W * (L ? 0.452 : 0.493);
-    this.winY      = H * (L ? 0.494 : 0.600);
-    this.pondCx    = W * (L ? 0.200 : 0.275);
-    this.pondCy    = H * (L ? 0.820 : 0.805);
+    this.winLX     = wl.x - this.winW * 0.5;
+    this.winRX     = wr.x - this.winW * 0.5;
+    this.winY      = (wl.y + wr.y) * 0.5 - this.winH * 0.5;
+    this.pondCx    = po.x;
+    this.pondCy    = po.y;
     this.pondRx    = W * (L ? 0.120 : 0.130);
     this.pondRy    = H * (L ? 0.028 : 0.030);
-    this.treeLX    = W * (L ? 0.275 : 0.305);
-    this.treeLTopY = H * (L ? 0.340 : 0.385);
-    this.treeRX    = W * (L ? 0.715 : 0.735);
-    this.treeRTopY = H * (L ? 0.355 : 0.400);
+    this.treeLX    = tl.x;
+    this.treeLTopY = tl.y;
+    this.treeRX    = tr.x;
+    this.treeRTopY = tr.y;
 
     if (!this._ev) {
       const lf = {};
@@ -1160,15 +1212,15 @@ class CabinEventsOverlay {
 
 // ─── OVERLAY REGISTRY ─────────────────────────────────────────────────────────
 const OVERLAY_REGISTRY = {
-  snow:            (W, H) => { const o = new SnowOverlay();            o.init(W, H); return o; },
-  smoke:           (W, H) => { const o = new SmokeOverlay().setChimneyPos({ cx: 0.563, cy: 0.635 }, { cx: 0.539, cy: 0.510 }); o.init(W, H); return o; },
-  cabinEvents:     (W, H) => { const o = new CabinEventsOverlay();     o.init(W, H); return o; },
-  birds:           (W, H) => { const o = new BirdsOverlay();           o.init(W, H); return o; },
-  waterGlints:     (W, H) => { const o = new WaterGlintsOverlay();     o.init(W, H); return o; },
-  seaMist:         (W, H) => { const o = new SeaMistOverlay();         o.init(W, H); return o; },
-  bubbles:         (W, H) => { const o = new BubblesOverlay();         o.init(W, H); return o; },
-  lightRays:       (W, H) => { const o = new LightRaysOverlay();       o.init(W, H); return o; },
-  fishSilhouettes: (W, H) => { const o = new FishSilhouettesOverlay(); o.init(W, H); return o; },
+  snow:            (W, H, img) => { const o = new SnowOverlay();            o.init(W, H, img); return o; },
+  smoke:           (W, H, img) => { const o = new SmokeOverlay().setChimneyPx({ px: 540, py: 1058 }, { px: 890, py: 552 }); o.init(W, H, img); return o; },
+  cabinEvents:     (W, H, img) => { const o = new CabinEventsOverlay();     o.init(W, H, img); return o; },
+  birds:           (W, H, img) => { const o = new BirdsOverlay();           o.init(W, H, img); return o; },
+  waterGlints:     (W, H, img) => { const o = new WaterGlintsOverlay();     o.init(W, H, img); return o; },
+  seaMist:         (W, H, img) => { const o = new SeaMistOverlay();         o.init(W, H, img); return o; },
+  bubbles:         (W, H, img) => { const o = new BubblesOverlay();         o.init(W, H, img); return o; },
+  lightRays:       (W, H, img) => { const o = new LightRaysOverlay();       o.init(W, H, img); return o; },
+  fishSilhouettes: (W, H, img) => { const o = new FishSilhouettesOverlay(); o.init(W, H, img); return o; },
 };
 
 // ─── UI DRAWING ───────────────────────────────────────────────────────────────
@@ -1244,6 +1296,9 @@ class MomentariumApp {
     this.lastTime  = null;
     this.startTime = performance.now();
 
+    this._debugMode = location.search.includes('debug') || location.hash.includes('debug');
+    this._debugDot  = null;
+
     this._initResize();
     this._initInput();
     this._initShake();
@@ -1286,9 +1341,10 @@ class MomentariumApp {
   _buildOverlays() {
     for (const scene of SCENES) {
       this.overlays[scene.id] = {};
+      const img = this._sceneImage(scene);
       for (const name of scene.overlays) {
         if (OVERLAY_REGISTRY[name]) {
-          this.overlays[scene.id][name] = OVERLAY_REGISTRY[name](this.W, this.H);
+          this.overlays[scene.id][name] = OVERLAY_REGISTRY[name](this.W, this.H, img);
         }
       }
     }
@@ -1298,8 +1354,9 @@ class MomentariumApp {
     for (const scene of SCENES) {
       const group = this.overlays[scene.id];
       if (!group) continue;
+      const img = this._sceneImage(scene);
       for (const o of Object.values(group)) {
-        if (o.init) o.init(this.W, this.H);
+        if (o.init) o.init(this.W, this.H, img);
       }
     }
   }
@@ -1323,7 +1380,8 @@ class MomentariumApp {
       if (Math.abs(dx) > CFG.swipeThreshold && Math.abs(dx) > Math.abs(dy) * 1.2) {
         this._go(this.activeIdx + (dx < 0 ? 1 : -1));
       } else if (Math.abs(dx) < 14 && Math.abs(dy) < 14 && dt < 280) {
-        this._stir();
+        if (this._debugMode) this._debugMeasure(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        else this._stir();
       }
       e.preventDefault();
     }, { passive: false });
@@ -1337,7 +1395,8 @@ class MomentariumApp {
       if (Math.abs(dx) > CFG.swipeThreshold && Math.abs(dx) > Math.abs(dy) * 1.2) {
         this._go(this.activeIdx + (dx < 0 ? 1 : -1));
       } else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-        this._stir();
+        if (this._debugMode) this._debugMeasure(e.clientX, e.clientY);
+        else this._stir();
       }
     });
 
@@ -1373,6 +1432,19 @@ class MomentariumApp {
       if (o.kick) o.kick(CFG.tapKickStrength);
       else if (o.stir) o.stir(CFG.tapKickStrength);
     }
+  }
+
+  _debugMeasure(cx, cy) {
+    const scene = SCENES[this.activeIdx];
+    const img   = this._sceneImage(scene);
+    if (!img) { console.warn('[debug] no image for current scene'); return; }
+    const { px, py } = canvasToPaint(cx, cy, img, this.W, this.H);
+    this._debugDot = { x: cx, y: cy, px, py };
+    console.info(
+      `[debug] paintToCanvas(${px}, ${py})` +
+      `  ←  canvas (${Math.round(cx)}, ${Math.round(cy)})` +
+      `  img ${img.width}×${img.height}`
+    );
   }
 
   onShake() {
@@ -1494,6 +1566,30 @@ class MomentariumApp {
 
     // UI
     drawUI(ctx, W, H, scene.name, SCENES.length, this.activeIdx);
+
+    // Debug overlay — active when ?debug is in the URL
+    if (this._debugMode) {
+      ctx.save();
+      ctx.font        = '11px monospace';
+      ctx.fillStyle   = 'rgba(255,200,60,0.85)';
+      ctx.shadowBlur  = 6;
+      ctx.shadowColor = '#000';
+      ctx.fillText('DEBUG — click to measure paint coords', 8, H - 8);
+      if (this._debugDot) {
+        const d = this._debugDot;
+        ctx.strokeStyle = 'rgba(255,60,60,0.95)';
+        ctx.lineWidth   = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(d.x - 22, d.y); ctx.lineTo(d.x + 22, d.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(d.x, d.y - 22); ctx.lineTo(d.x, d.y + 22); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(255,60,60,0.95)';
+        ctx.beginPath(); ctx.arc(d.x, d.y, 3, 0, TAU); ctx.fill();
+        ctx.fillStyle   = 'rgba(255,255,100,0.95)';
+        ctx.fillText(`(${d.px}, ${d.py})`, d.x + 8, d.y - 8);
+      }
+      ctx.restore();
+    }
 
     // Fade to black overlay for transitions
     if (this.fade < 1) {
