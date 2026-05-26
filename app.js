@@ -64,7 +64,7 @@ const deerSprites = {};
 async function preloadDeerSprites() {
   const base = 'assets/scenes/tiny-cabin/deer/';
   await Promise.all(
-    ['walk-0', 'walk-1', 'walk-2', 'walk-3', 'pause'].map(async n => {
+    ['walk-0', 'walk-1'].map(async n => {
       deerSprites[n] = await loadImage(`${base}${n}.png`);
     })
   );
@@ -607,7 +607,7 @@ class CabinEventsOverlay {
     const gd = p2c(...(L ? [821,  750] : [477, 1322]));
     const po = p2c(...(L ? [568,  849] : [333, 1494]));
 
-    this.gy        = gd.y;
+    this.gy        = gd.y + this.S * 0.08;
     this.chx       = ch.x;
     this.chy       = ch.y;
     this.roofPeakX = pk.x;
@@ -1000,7 +1000,7 @@ class CabinEventsOverlay {
         const p       = et / dur;
         const ps      = 0.40, pe = 0.58;
         const xp      = p < ps ? p / ps * 0.5 : p < pe ? 0.5 : 0.5 + (p - pe) / (1 - pe) * 0.5;
-        const sz      = S * 0.28;
+        const sz      = S * (W > H ? 0.14 : 0.28);
         const margin  = sz * 1.5;
         const startX  = ev.dir > 0 ? -margin : W + margin;
         const endX    = ev.dir > 0 ? W + margin : -margin;
@@ -1008,8 +1008,9 @@ class CabinEventsOverlay {
         const pausing = p >= ps && p < pe;
         const fa      = p < 0.07 ? p / 0.07 : p > 0.93 ? (1 - p) / 0.07 : 1;
 
-        const frameIdx = Math.floor(et * (4.6 / (Math.PI * 2)) * 4) % 4;
-        const frame    = pausing ? deerSprites['pause'] : deerSprites[`walk-${frameIdx}`];
+        const walkTime = pausing ? ps * dur : et;
+        const frameIdx = Math.floor(walkTime * (4.6 / (Math.PI * 2)) * 2) % 2;
+        const frame    = deerSprites[`walk-${frameIdx}`];
         if (frame) {
           // drawH tuned so sprite deer ≈ same apparent height as procedural deer
           const drawH  = sz * 1.2;
@@ -1029,9 +1030,9 @@ class CabinEventsOverlay {
           if (pausing) {
             const bAge  = et - ps * dur;
             const bFade = Math.min(1, bAge / 0.55);
-            // nose offset from foot anchor in sprite coords (pause frame, head raised)
-            const noseX = drawW * 0.12;
-            const noseY = -drawH * 0.79;
+            // nose offset from foot anchor in sprite coords
+            const noseX = drawW * 0.38;
+            const noseY = -drawH * 0.62;
             const breathAngle = -0.35;
             for (let i = 0; i < 3; i++) {
               const bp = ((t * .62 + i * .42) % 1.5) * bFade;
