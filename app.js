@@ -1305,11 +1305,11 @@ class WindowGlowOverlay {
     if (!this._winLX) return;
     // Four-frequency candle flicker — incommensurate frequencies produce irregular beat
     const flicker = ph =>
-        0.65
-      + 0.14 * Math.sin(t * 0.38  + ph)
-      + 0.11 * Math.sin(t * 2.30  + ph * 1.4)
-      + 0.07 * Math.sin(t * 6.10  + ph * 2.3)
-      + 0.04 * Math.sin(t * 13.70 + ph * 4.1);
+        0.55
+      + 0.20 * Math.sin(t * 0.38  + ph)
+      + 0.15 * Math.sin(t * 2.30  + ph * 1.4)
+      + 0.09 * Math.sin(t * 6.10  + ph * 2.3)
+      + 0.06 * Math.sin(t * 13.70 + ph * 4.1);
     const { _winLX: lx, _winRX: rx, _winCY: cy, _winW: ww, _winH: wh } = this;
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
