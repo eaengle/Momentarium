@@ -61,13 +61,14 @@ async function preloadScenes(scenes) {
 }
 
 const deerSprites = {};
+const DEER_WALK_FRAMES = 11;
 async function preloadDeerSprites() {
-  const base = 'assets/scenes/tiny-cabin/deer/';
-  await Promise.all(
-    ['walk-0', 'walk-1'].map(async n => {
-      deerSprites[n] = await loadImage(`${base}${n}.png`);
-    })
-  );
+  const base  = 'assets/scenes/tiny-cabin/deer/';
+  const names = Array.from({ length: DEER_WALK_FRAMES }, (_, i) => `walk-${i}`);
+  names.push('pause');
+  await Promise.all(names.map(async n => {
+    deerSprites[n] = await loadImage(`${base}${n}.png`);
+  }));
 }
 
 const owlSprites = {};
@@ -1056,7 +1057,7 @@ class CabinEventsOverlay {
 
     // ── DEER ───────────────────────────────────────────────────────────────────
     } else if (ev.active === 'deer') {
-      const dur = 11;
+      const dur = 20;
       if (et > dur) { ev.active = null; } else {
         const p       = et / dur;
         const ps      = 0.40, pe = 0.58;
@@ -1070,8 +1071,9 @@ class CabinEventsOverlay {
         const fa      = p < 0.07 ? p / 0.07 : p > 0.93 ? (1 - p) / 0.07 : 1;
 
         const walkTime = pausing ? ps * dur : et;
-        const frameIdx = Math.floor(walkTime * (4.6 / (Math.PI * 2)) * 2) % 2;
-        const frame    = deerSprites[`walk-${frameIdx}`];
+        const frameIdx = Math.floor(walkTime * (4.6 / (Math.PI * 2)) * DEER_WALK_FRAMES) % DEER_WALK_FRAMES;
+        const frame    = pausing ? (deerSprites['pause'] || deerSprites['walk-0'])
+                                 : deerSprites[`walk-${frameIdx}`];
         if (frame) {
           // drawH tuned so sprite deer ≈ same apparent height as procedural deer
           const drawH  = sz * 1.2;
@@ -1093,7 +1095,7 @@ class CabinEventsOverlay {
             const bFade = Math.min(1, bAge / 0.55);
             // nose offset from foot anchor in sprite coords
             const noseX = drawW * 0.38;
-            const noseY = -drawH * 0.62;
+            const noseY = -drawH * 0.55;
             const breathAngle = -0.35;
             for (let i = 0; i < 3; i++) {
               const bp = ((t * .62 + i * .42) % 1.5) * bFade;
