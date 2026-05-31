@@ -2897,9 +2897,9 @@ const SC_ANCHORS = {
   robotEntryOccRight1: [1240, 643], robotEntryOccRight2: [1182, 645],
 };
 
-// Portrait image (941×1672) anchor estimates — use ?debug to fine-tune
+// Portrait image (941×1672) — measured with ?debug 2026-05-31
 const SC_ANCHORS_P = {
-  plasmaCenter:  [470, 620],
+  plasmaCenter:  [466, 891],
   archArcLeft:   [255, 555],
   archArcRight:  [685, 555],
 };
@@ -3065,9 +3065,9 @@ class SpaceChurchOverlay {
   _initStars() {
     const OUTER = [[713,537],[712,364],[750,319],[839,178],[921,317],[954,364],[957,553]];
     const INNER = [[728,545],[736,462],[836,318],[922,448],[949,516],[942,552]];
-    // Portrait arch polygon (941×1672 paint space) — estimates, fine-tune with ?debug
-    const OUTERP = [[285,570],[230,415],[265,225],[470,60],[675,225],[710,415],[655,570]];
-    const INNERP  = [[385,560],[365,510],[385,460],[470,435],[555,460],[575,510],[555,560]];
+    // Portrait arch polygon (941×1672 paint space) — measured with ?debug 2026-05-31
+    const OUTERP = [[370,945],[370,815],[399,779],[468,621],[533,771],[558,813],[561,945]];
+    const INNERP  = [[550,935],[522,892],[487,786],[446,783],[404,898],[382,942]];
     function pip(px, py, poly) {
       let ins = false;
       for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -3429,15 +3429,15 @@ class SpaceChurchOverlay {
       { points:[[1203,892],[950,679]], segs:[true], speed:0.00012, phase:0.88 },
     ];
   }
-  // Portrait floor channels (941×1672 paint space) — estimates, fine-tune with ?debug
+  // Portrait floor channels (941×1672 paint space) — measured with ?debug 2026-05-31
   _floorDefsP() {
     return [
-      { points:[[0,1672],[95,1420],[195,1180],[290,970],[365,800],[415,685]], segs:[true,false,true,false,true], speed:0.00012, phase:0.0  },
-      { points:[[941,1672],[845,1420],[745,1180],[651,970],[575,800],[525,685]], segs:[true,false,true,false,true], speed:0.00012, phase:0.5  },
-      { points:[[395,1672],[440,685]], segs:[true], speed:0.00013, phase:0.15 },
-      { points:[[450,1672],[455,685]], segs:[true], speed:0.00015, phase:0.65 },
-      { points:[[545,1672],[500,685]], segs:[true], speed:0.00014, phase:0.38 },
-      { points:[[490,1672],[470,685]], segs:[true], speed:0.00012, phase:0.88 },
+      { points:[[3,1301],[56,1261],[145,1209],[202,1174],[261,1140],[286,1120]],   segs:[true,false,true,false,true], speed:0.00012, phase:0.0  },
+      { points:[[940,1300],[879,1258],[785,1209],[734,1176],[678,1142],[646,1123]], segs:[true,false,true,false,true], speed:0.00012, phase:0.5  },
+      { points:[[77,1610],[389,1115]],  segs:[true], speed:0.00013, phase:0.15 },
+      { points:[[164,1620],[419,1106]], segs:[true], speed:0.00015, phase:0.65 },
+      { points:[[781,1629],[520,1116]], segs:[true], speed:0.00014, phase:0.38 },
+      { points:[[870,1617],[548,1116]], segs:[true], speed:0.00012, phase:0.88 },
     ];
   }
   _drawFloorLines(ctx, W, H, now) {
