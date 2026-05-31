@@ -1733,6 +1733,17 @@ class TechRuinOverlay {
     ctx.restore();
   }
 
+  _nightMul(t) {
+    const age = t - this._night.t0;
+    if (age < 0 || age >= 32) return 1.0;
+    const FADE_IN = 8, HOLD = 14, FADE_OUT = 10;
+    let frac;
+    if (age < FADE_IN)             frac = age / FADE_IN;
+    else if (age < FADE_IN + HOLD) frac = 1.0;
+    else                           frac = 1 - (age - FADE_IN - HOLD) / FADE_OUT;
+    return 1.0 - frac * 0.80;
+  }
+
   // ── God Rays ───────────────────────────────────────────────────────────────
   _drawGodRays(ctx, W, H, t) {
     const shafts = [
@@ -1901,6 +1912,7 @@ class TechRuinOverlay {
     const bshTR = A.waterfallBushTR ? this._ptc(...A.waterfallBushTR) : botR;
     const sc    = this._s();
     const lerp  = (a, b, f) => a + (b - a) * f;
+    const nm    = this._nightMul(t);
 
     ctx.save();
     ctx.beginPath();
@@ -1910,6 +1922,7 @@ class TechRuinOverlay {
     ctx.closePath();
     ctx.clip();
     ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = nm;
 
     const mTx = lerp(tl.x, tr.x, 0.5), mTy = lerp(tl.y, tr.y, 0.5);
     const mBx = lerp(bl.x, br2.x, 0.5), mBy = lerp(bl.y, br2.y, 0.5);
@@ -1974,6 +1987,7 @@ class TechRuinOverlay {
 
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = nm;
     for (const b of this._wfBillow) {
       const sc2 = this._s();
       const bx = lerp(bl.x, br2.x, b.t) + Math.sin(t * b.driftFreq + b.phase) * b.driftAmp * sc2;
@@ -1996,6 +2010,7 @@ class TechRuinOverlay {
     if (this.W < this.H) {
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = nm;
       const sc2 = this._s();
       // Anchor points spanning the bottom quarter (75% down the fall to the base)
       const q3xl = lerp(tl.x, bl.x, 0.75), q3yl = lerp(tl.y, bl.y, 0.75);
@@ -2024,13 +2039,13 @@ class TechRuinOverlay {
   // ── Fog Patches ────────────────────────────────────────────────────────────
   _drawFogPatches(ctx, W, H, t) {
     const PATCHES = [
-      { nx: 0.15, ny: 0.82, rNx: 0.185, rNy: 0.072, ph: 0.00, dax: 0.040, day: 0.014, dfx: 0.178, dfy: 0.238, a: 0.340 },
-      { nx: 0.48, ny: 0.75, rNx: 0.205, rNy: 0.090, ph: 2.10, dax: 0.034, day: 0.019, dfx: 0.212, dfy: 0.182, a: 0.310 },
-      { nx: 0.82, ny: 0.80, rNx: 0.162, rNy: 0.068, ph: 1.20, dax: 0.030, day: 0.013, dfx: 0.162, dfy: 0.255, a: 0.360 },
-      { nx: 0.33, ny: 0.91, rNx: 0.152, rNy: 0.056, ph: 3.80, dax: 0.044, day: 0.011, dfx: 0.196, dfy: 0.292, a: 0.320 },
-      { nx: 0.68, ny: 0.70, rNx: 0.138, rNy: 0.082, ph: 0.90, dax: 0.028, day: 0.017, dfx: 0.242, dfy: 0.158, a: 0.280 },
-      { nx: 0.24, ny: 0.62, rNx: 0.120, rNy: 0.062, ph: 5.20, dax: 0.026, day: 0.021, dfx: 0.176, dfy: 0.214, a: 0.230 },
-      { nx: 0.76, ny: 0.65, rNx: 0.132, rNy: 0.060, ph: 4.48, dax: 0.032, day: 0.015, dfx: 0.204, dfy: 0.188, a: 0.250 },
+      { nx: 0.15, ny: 0.82, rNx: 0.185, rNy: 0.072, ph: 0.00, dax: 0.040, day: 0.014, dfx: 0.178, dfy: 0.238, a: 0.510 },
+      { nx: 0.48, ny: 0.75, rNx: 0.205, rNy: 0.090, ph: 2.10, dax: 0.034, day: 0.019, dfx: 0.212, dfy: 0.182, a: 0.465 },
+      { nx: 0.82, ny: 0.80, rNx: 0.162, rNy: 0.068, ph: 1.20, dax: 0.030, day: 0.013, dfx: 0.162, dfy: 0.255, a: 0.540 },
+      { nx: 0.33, ny: 0.91, rNx: 0.152, rNy: 0.056, ph: 3.80, dax: 0.044, day: 0.011, dfx: 0.196, dfy: 0.292, a: 0.480 },
+      { nx: 0.68, ny: 0.70, rNx: 0.138, rNy: 0.082, ph: 0.90, dax: 0.028, day: 0.017, dfx: 0.242, dfy: 0.158, a: 0.420 },
+      { nx: 0.24, ny: 0.62, rNx: 0.120, rNy: 0.062, ph: 5.20, dax: 0.026, day: 0.021, dfx: 0.176, dfy: 0.214, a: 0.345 },
+      { nx: 0.76, ny: 0.65, rNx: 0.132, rNy: 0.060, ph: 4.48, dax: 0.032, day: 0.015, dfx: 0.204, dfy: 0.188, a: 0.375 },
     ];
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
@@ -2038,7 +2053,7 @@ class TechRuinOverlay {
       const cx = (p.nx + Math.sin(t * p.dfx + p.ph) * p.dax) * W;
       const cy = (p.ny + Math.cos(t * p.dfy + p.ph * 0.78) * p.day) * H;
       const breathe = 0.56 + 0.28 * Math.sin(t * 0.124 + p.ph) + 0.16 * Math.sin(t * 0.276 + p.ph * 1.55);
-      const alpha = p.a * breathe;
+      const alpha = p.a * breathe * this._nightMul(t);
       if (alpha < 0.008) continue;
       const rx = p.rNx * W, ry = p.rNy * H;
       ctx.save();
