@@ -2713,8 +2713,8 @@ class TechRuinOverlay {
       vy: rand(4.0, 7.2), len: rand(12, 23), floorY, splashT: -Infinity, splashed: false };
   }
   _initRainAmb() {
-    this._ambDrips  = Array.from({ length: 54 },  () => this._makeAmbDrip(true));
-    this._ambSheets = Array.from({ length: 260 }, () => this._makeAmbSheet(true));
+    this._ambDrips  = Array.from({ length: 486 }, () => this._makeAmbDrip(true));
+    this._ambSheets = Array.from({ length: 2340 }, () => this._makeAmbSheet(true));
     this._ambPH1 = rand(0, TAU); this._ambPH2 = rand(0, TAU);
     this._heavyRain = { t0: -Infinity, pts: [], mist: [], splashes: [] };
   }
