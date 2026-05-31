@@ -624,6 +624,15 @@ const EV_NAMES_CABIN = [
   'windowShadow', 'chimneySpark', 'smokeBurst',
 ];
 
+// ─── TECH RUIN — EVENT NAMES (for keyboard debug) ────────────────────────────
+const EV_NAMES_TECH_RUIN = [
+  'server_glitch', 'glow_surge', 'cable_spark', 'power_arc',
+  'data_drift', 'monitor_static', 'screen_message', 'scanner_sweep',
+  'spore_cloud', 'eyes_appear', 'firefly_surge', 'bird_fly',
+  'leaf_gust', 'falling_leaf', 'rain_drips', 'creature_scurry',
+  'sunbeam_shift', 'night_shift',
+];
+
 class CabinEventsOverlay {
   constructor() { this._ev = null; }
 
@@ -1541,16 +1550,16 @@ const TR_ANCHORS = {
     serverRight:     [614, 727],
     laptopScreen:    [578, 813],
     darkCavity:      [475, 890],
-    mushroomClumps:  [[121, 422], [174, 427]],
-    waterfallTL:     [130, 619],
-    waterfallTR:     [201, 647],
-    waterfallBL:     [127, 621],
-    waterfallBR2:    [198, 644],
-    waterfallBotL:   [159, 632],
-    waterfallBotL2:  [167, 635],
+    mushroomClumps:  [[742, 1249], [228, 1386], [319, 1222], [213, 1263]],
+    waterfallTL:     [164, 428],
+    waterfallTR:     [181, 427],
+    waterfallBL:     [170, 642],
+    waterfallBR2:    [200, 646],
+    waterfallBotL:   [170, 642],
+    waterfallBotL2:  [172, 643],
     waterfallBushTL: null,
     waterfallBushTR: null,
-    waterfallBotR:   [199, 647],
+    waterfallBotR:   [200, 646],
   },
   landscape: {
     serverCenter:    [545, 460],
@@ -1605,6 +1614,11 @@ class TechRuinOverlay {
     this._monMsg  = { t0: -Infinity, msg: '' };
     this._monScan = { t0: -Infinity };
     this._initEventTimers();
+  }
+
+  triggerEvent(name, t) {
+    if (!EV_NAMES_TECH_RUIN.includes(name)) return;
+    this._fireEvent(name, t);
   }
 
   _def(min, max) { return { min, max, next: min * (0.4 + Math.random() * 0.8) }; }
@@ -1856,6 +1870,17 @@ class TechRuinOverlay {
       rVar: rand(10, 20), alpha: rand(0.09, 0.16), driftAmp: rand(5, 12),
       driftFreq: rand(0.18, 0.36),
     }));
+    // Portrait-only: larger puffs filling the bottom quarter of the fall
+    this._wfBillowPortrait = Array.from({ length: 10 }, () => ({
+      t:         rand(0.0, 1.0),
+      vy:        rand(0, 1),
+      phase:     rand(0, TAU),
+      rBase:     rand(55, 100),
+      rVar:      rand(20, 40),
+      alpha:     rand(0.12, 0.22),
+      driftAmp:  rand(12, 25),
+      driftFreq: rand(0.12, 0.26),
+    }));
   }
 
   _drawWaterfall(ctx, W, H, t) {
@@ -1962,6 +1987,34 @@ class TechRuinOverlay {
       ctx.beginPath(); ctx.arc(bx, by, r, 0, TAU); ctx.fill();
     }
     ctx.restore();
+
+    // Portrait-only: enhanced billowing mist cloud in the bottom quarter of the fall
+    if (this.W < this.H) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      const sc2 = this._s();
+      // Anchor points spanning the bottom quarter (75% down the fall to the base)
+      const q3xl = lerp(tl.x, bl.x, 0.75), q3yl = lerp(tl.y, bl.y, 0.75);
+      const q3xr = lerp(tr.x, br2.x, 0.75), q3yr = lerp(tr.y, br2.y, 0.75);
+      for (const b of this._wfBillowPortrait) {
+        const lx = lerp(q3xl, bl.x, b.vy), ly = lerp(q3yl, bl.y, b.vy);
+        const rx = lerp(q3xr, br2.x, b.vy), ry = lerp(q3yr, br2.y, b.vy);
+        const bx = lerp(lx, rx, b.t) + Math.sin(t * b.driftFreq + b.phase) * b.driftAmp * sc2;
+        const by = lerp(ly, ry, b.t) + Math.cos(t * b.driftFreq * 0.7 + b.phase * 1.3) * b.driftAmp * 0.7 * sc2;
+        const pulse = 0.5 + 0.34 * Math.sin(t * 0.48 + b.phase) + 0.16 * Math.sin(t * 1.12 + b.phase * 1.7);
+        const r = (b.rBase + b.rVar * pulse) * sc2;
+        const a = b.alpha * (0.52 + 0.48 * pulse);
+        if (a < 0.008) continue;
+        const bg = ctx.createRadialGradient(bx, by, 0, bx, by, r);
+        bg.addColorStop(0,    `rgba(238,254,255,${Math.min(0.99, a * 2.2).toFixed(3)})`);
+        bg.addColorStop(0.35, `rgba(220,248,255,${Math.min(0.99, a * 1.3).toFixed(3)})`);
+        bg.addColorStop(0.65, `rgba(195,235,255,${(a * 0.55).toFixed(3)})`);
+        bg.addColorStop(1,    'rgba(172,220,255,0)');
+        ctx.fillStyle = bg;
+        ctx.beginPath(); ctx.arc(bx, by, r, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
   }
 
   // ── Fog Patches ────────────────────────────────────────────────────────────
@@ -3003,20 +3056,23 @@ class MomentariumApp {
       if (e.key === 'ArrowLeft')  { this._go(this.activeIdx - 1); return; }
       if (e.key === 's' || e.key === 'S') { this.onShake(); return; }
       const scene = SCENES[this.activeIdx];
-      const evOverlay = (this.overlays[scene.id] || {}).cabinEvents;
+      const sceneOverlays = this.overlays[scene.id] || {};
+      let evOverlay = null, evNames = null;
+      if (sceneOverlays.cabinEvents) { evOverlay = sceneOverlays.cabinEvents; evNames = EV_NAMES_CABIN; }
+      else if (sceneOverlays.techRuin) { evOverlay = sceneOverlays.techRuin; evNames = EV_NAMES_TECH_RUIN; }
       if (!evOverlay) return;
       if (e.key === '[') {
         e.preventDefault();
-        this._dbgEventIdx = ((this._dbgEventIdx - 1) + EV_NAMES_CABIN.length) % EV_NAMES_CABIN.length;
-        console.info(`[cabin event] selected: ${EV_NAMES_CABIN[this._dbgEventIdx]} (${this._dbgEventIdx + 1}/${EV_NAMES_CABIN.length})`);
+        this._dbgEventIdx = ((this._dbgEventIdx - 1) + evNames.length) % evNames.length;
+        console.info(`[${scene.id} event] selected: ${evNames[this._dbgEventIdx]} (${this._dbgEventIdx + 1}/${evNames.length})`);
       } else if (e.key === ']') {
         e.preventDefault();
-        this._dbgEventIdx = (this._dbgEventIdx + 1) % EV_NAMES_CABIN.length;
-        console.info(`[cabin event] selected: ${EV_NAMES_CABIN[this._dbgEventIdx]} (${this._dbgEventIdx + 1}/${EV_NAMES_CABIN.length})`);
+        this._dbgEventIdx = (this._dbgEventIdx + 1) % evNames.length;
+        console.info(`[${scene.id} event] selected: ${evNames[this._dbgEventIdx]} (${this._dbgEventIdx + 1}/${evNames.length})`);
       } else if (e.key === 'Enter') {
         e.preventDefault();
         const t = (performance.now() - this.startTime) * 0.001;
-        evOverlay.triggerEvent(EV_NAMES_CABIN[this._dbgEventIdx], t);
+        evOverlay.triggerEvent(evNames[this._dbgEventIdx], t);
       }
     });
   }
