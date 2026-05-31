@@ -2897,6 +2897,13 @@ const SC_ANCHORS = {
   robotEntryOccRight1: [1240, 643], robotEntryOccRight2: [1182, 645],
 };
 
+// Portrait image (941×1672) anchor estimates — use ?debug to fine-tune
+const SC_ANCHORS_P = {
+  plasmaCenter:  [470, 620],
+  archArcLeft:   [255, 555],
+  archArcRight:  [685, 555],
+};
+
 const scHoloImgs   = { sword: [], soldier: [], angel: [], abstract: [], priest: [], alien: [] };
 const scRobotImgs  = {};
 async function preloadSpaceChurchSprites() {
@@ -2923,7 +2930,7 @@ class SpaceChurchOverlay {
   // ── Helpers ──────────────────────────────────────────────────────────────────
   _s()         { if (!this.img) return 1; const { sw } = _coverParams(this.img, this.W, this.H); return this.W / sw; }
   _ptc(px, py) { return paintToCanvas(px, py, this.img, this.W, this.H); }
-  _anc(key)    { return SC_ANCHORS[key]; }
+  _anc(key)    { return ((this.W <= this.H) ? SC_ANCHORS_P : SC_ANCHORS)[key] || SC_ANCHORS[key]; }
   _ready()     { return this.img && this.img.naturalWidth; }
 
   // ── Init ─────────────────────────────────────────────────────────────────────
@@ -2941,6 +2948,7 @@ class SpaceChurchOverlay {
     this._floorConv   = { active: false, startT: -1, mul: 1.0, adjs: null, env: 0, phaseAdjs: [] };
     this._robot       = { active: false, startAt: -1, dir: 0 };
     this._floatRobot  = { active: false, startAt: -1, dir: 0 };
+    this._pulsarRipple = { active: false, startAt: -1 };
     this._initEventTimers();
   }
 
@@ -2956,6 +2964,7 @@ class SpaceChurchOverlay {
       rune_flash:        this._def(30, 70),
       robot_procession:  this._def(45, 100),
       float_robot:       this._def(50, 110),
+      pulsar_ripple:     this._def(28, 60),
     };
   }
 
@@ -3056,6 +3065,9 @@ class SpaceChurchOverlay {
   _initStars() {
     const OUTER = [[713,537],[712,364],[750,319],[839,178],[921,317],[954,364],[957,553]];
     const INNER = [[728,545],[736,462],[836,318],[922,448],[949,516],[942,552]];
+    // Portrait arch polygon (941×1672 paint space) — estimates, fine-tune with ?debug
+    const OUTERP = [[285,570],[230,415],[265,225],[470,60],[675,225],[710,415],[655,570]];
+    const INNERP  = [[385,560],[365,510],[385,460],[470,435],[555,460],[575,510],[555,560]];
     function pip(px, py, poly) {
       let ins = false;
       for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -3070,19 +3082,26 @@ class SpaceChurchOverlay {
       ['255,240,255','255,165,220','210,75,160'], ['210,245,255','130,205,255','50,140,245'],
       ['255,255,255','200,255,210','60,200,120'],
     ];
-    const minX = Math.min(...OUTER.map(p => p[0])), maxX = Math.max(...OUTER.map(p => p[0]));
-    const minY = Math.min(...OUTER.map(p => p[1])), maxY = Math.max(...OUTER.map(p => p[1]));
-    this._stars = []; let tries = 0;
-    while (this._stars.length < 80 && tries < 20000) {
-      tries++;
-      const px = minX + Math.random() * (maxX - minX), py = minY + Math.random() * (maxY - minY);
-      if (!pip(px, py, OUTER) || pip(px, py, INNER)) continue;
-      const roll = Math.random();
-      this._stars.push({ px, py, phase: Math.random() * TAU, freq: 0.0005 + Math.random() * 0.0015,
-        r: roll < 0.07 ? rand(2.5, 4.5) : roll < 0.25 ? rand(1.2, 2.5) : rand(0.4, 1.2),
-        tier: roll < 0.07 ? 2 : roll < 0.25 ? 1 : 0, pal: Math.floor(Math.random() * PALS.length) });
+    function seedStars(outer, inner, count) {
+      const minX = Math.min(...outer.map(p => p[0])), maxX = Math.max(...outer.map(p => p[0]));
+      const minY = Math.min(...outer.map(p => p[1])), maxY = Math.max(...outer.map(p => p[1]));
+      const out = []; let tries = 0;
+      while (out.length < count && tries < 20000) {
+        tries++;
+        const px = minX + Math.random() * (maxX - minX), py = minY + Math.random() * (maxY - minY);
+        if (!pip(px, py, outer) || pip(px, py, inner)) continue;
+        const roll = Math.random();
+        out.push({ px, py, phase: Math.random() * TAU, freq: 0.0005 + Math.random() * 0.0015,
+          r: roll < 0.07 ? rand(2.5, 4.5) : roll < 0.25 ? rand(1.2, 2.5) : rand(0.4, 1.2),
+          tier: roll < 0.07 ? 2 : roll < 0.25 ? 1 : 0, pal: Math.floor(Math.random() * PALS.length) });
+      }
+      return out;
     }
-    this._starOUTER = OUTER; this._starINNER = INNER; this._starPALS = PALS;
+    this._stars  = seedStars(OUTER,  INNER,  80);
+    this._starsP = seedStars(OUTERP, INNERP, 80);
+    this._starOUTER = OUTER; this._starINNER = INNER;
+    this._starOUTERP = OUTERP; this._starINNERP = INNERP;
+    this._starPALS = PALS;
   }
 
   // ── Update ────────────────────────────────────────────────────────────────────
@@ -3107,6 +3126,7 @@ class SpaceChurchOverlay {
       case 'rune_flash':        this._triggerRuneFlash(); break;
       case 'robot_procession':  if (!this._robot.active)      this._robot      = { active: true, startAt: -1, dir: Math.random() < 0.5 ? -1 : 1 }; break;
       case 'float_robot':       if (!this._floatRobot.active) this._floatRobot = { active: true, startAt: -1, dir: Math.random() < 0.5 ? -1 : 1 }; break;
+      case 'pulsar_ripple':     if (!this._pulsarRipple.active) this._pulsarRipple = { active: true, startAt: -1 }; break;
     }
   }
 
@@ -3114,7 +3134,16 @@ class SpaceChurchOverlay {
   draw(ctx, W, H, t) {
     this.W = W; this.H = H;
     const now = t * 1000;
-    if (W <= H) { this._drawGodRaysPortrait(ctx, W, H, t); return; }
+    if (W <= H) {
+      this._tickCatDim(now);
+      this._drawCathedralDimming(ctx, W, H);
+      this._drawBackWindowStars(ctx, W, H, now);
+      this._drawGodRaysPortrait(ctx, W, H, t);
+      this._drawPlasmaBall(ctx, W, H, now);
+      this._tickFloorConv(now);
+      this._drawFloorLines(ctx, W, H, now);
+      return;
+    }
     this._tickCatDim(now);
     this._drawCathedralDimming(ctx, W, H);
     this._drawBackWindowStars(ctx, W, H, now);
@@ -3129,6 +3158,7 @@ class SpaceChurchOverlay {
     this._tickFloorConv(now);
     this._drawFloorLines(ctx, W, H, now);
     this._drawGroundFog(ctx, W, H, now);
+    this._drawPulsarRipple(ctx, W, H, now);
     this._drawRobotProcession(ctx, W, H, now);
     for (const p of this._pillars) p.drawParticles(ctx, this._lastDt || 16);
     this._drawFloatRobot(ctx, W, H, now);
@@ -3191,7 +3221,11 @@ class SpaceChurchOverlay {
   // ── Back window stars ──────────────────────────────────────────────────────────
   _drawBackWindowStars(ctx, W, H, now) {
     if (!this._ready()) return;
-    const OUTER = this._starOUTER, INNER = this._starINNER, PALS = this._starPALS;
+    const portrait = W <= H;
+    const OUTER = portrait ? this._starOUTERP : this._starOUTER;
+    const INNER = portrait ? this._starINNERP : this._starINNER;
+    const stars  = portrait ? this._starsP    : this._stars;
+    const PALS = this._starPALS;
     const s = this._s();
     ctx.save();
     ctx.beginPath();
@@ -3205,7 +3239,7 @@ class SpaceChurchOverlay {
     ctx.closePath();
     ctx.clip('evenodd');
     ctx.globalCompositeOperation = 'screen';
-    for (const star of this._stars) {
+    for (const star of stars) {
       const sc    = this._ptc(star.px, star.py);
       const pulse = 0.5 + 0.5 * Math.sin(now * star.freq + star.phase);
       const r     = star.r * s;
@@ -3238,7 +3272,7 @@ class SpaceChurchOverlay {
 
   // ── God rays ───────────────────────────────────────────────────────────────────
   _drawGodRays(ctx, W, H, now) {
-    if (!this._ready() || !SC_ANCHORS.plasmaCenter) return;
+    if (!this._ready() || !this._anc('plasmaCenter')) return;
     const BEAMS = [
       { tl: 'pillar1TopLeft', tr: 'pillar1TopRight', phase: 0.0  },
       { tl: 'pillar2TopLeft', tr: 'pillar2TopRight', phase: 1.6  },
@@ -3311,10 +3345,10 @@ class SpaceChurchOverlay {
     }
   }
   _drawPlasmaBall(ctx, W, H, now) {
-    if (!this._ready() || !SC_ANCHORS.plasmaCenter) return;
+    if (!this._ready() || !this._anc('plasmaCenter')) return;
     const REGEN = 2000, TRANS = 2000, RADIUS_PX = 160, TENDRIL_N = 4;
     const s = this._s();
-    const c = this._ptc(...SC_ANCHORS.plasmaCenter);
+    const c = this._ptc(...this._anc('plasmaCenter'));
     const R = RADIUS_PX * s;
     const drift = now * 0.000048;
     if (now - this._plasmaRegenAt > REGEN) { this._plasmaRegen(c, R, drift, this._plasmaArms, TENDRIL_N, 0.42); this._plasmaRegenAt = now; }
@@ -3385,6 +3419,7 @@ class SpaceChurchOverlay {
     fc.adjs = fc.phaseAdjs.map(adj => adj * fc.env);
   }
   _floorDefs() {
+    if (this.W <= this.H) return this._floorDefsP();
     return [
       { points:[[7,883],[137,828],[274,784],[389,742],[469,715],[555,687]], segs:[true,false,true,false,true], speed:0.00012, phase:0.0  },
       { points:[[1668,885],[1534,829],[1398,783],[1287,744],[1201,716],[1114,683]], segs:[true,false,true,false,true], speed:0.00012, phase:0.5  },
@@ -3392,6 +3427,17 @@ class SpaceChurchOverlay {
       { points:[[573,895],[755,678]],  segs:[true], speed:0.00015, phase:0.65 },
       { points:[[1102,897],[920,681]], segs:[true], speed:0.00014, phase:0.38 },
       { points:[[1203,892],[950,679]], segs:[true], speed:0.00012, phase:0.88 },
+    ];
+  }
+  // Portrait floor channels (941×1672 paint space) — estimates, fine-tune with ?debug
+  _floorDefsP() {
+    return [
+      { points:[[0,1672],[95,1420],[195,1180],[290,970],[365,800],[415,685]], segs:[true,false,true,false,true], speed:0.00012, phase:0.0  },
+      { points:[[941,1672],[845,1420],[745,1180],[651,970],[575,800],[525,685]], segs:[true,false,true,false,true], speed:0.00012, phase:0.5  },
+      { points:[[395,1672],[440,685]], segs:[true], speed:0.00013, phase:0.15 },
+      { points:[[450,1672],[455,685]], segs:[true], speed:0.00015, phase:0.65 },
+      { points:[[545,1672],[500,685]], segs:[true], speed:0.00014, phase:0.38 },
+      { points:[[490,1672],[470,685]], segs:[true], speed:0.00012, phase:0.88 },
     ];
   }
   _drawFloorLines(ctx, W, H, now) {
@@ -3480,6 +3526,37 @@ class SpaceChurchOverlay {
     ctx.restore();
   }
 
+  // ── Pulsar ripple event ────────────────────────────────────────────────────────
+  _drawPulsarRipple(ctx, W, H, now) {
+    const pr = this._pulsarRipple;
+    if (!pr.active || !this._ready()) return;
+    if (pr.startAt < 0) pr.startAt = now;
+    const elapsed = now - pr.startAt;
+    const DUR = 6000, N_RINGS = 6, RING_SPACING = DUR * 0.55 / N_RINGS;
+    if (elapsed >= DUR) { pr.active = false; return; }
+    const c = this._ptc(...this._anc('plasmaCenter'));
+    const s = this._s();
+    const MAX_R = Math.max(W, H) * 0.75;
+    ctx.save(); ctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < N_RINGS; i++) {
+      const ringStart = i * RING_SPACING;
+      const ringElapsed = elapsed - ringStart;
+      if (ringElapsed <= 0) continue;
+      const ringDur = DUR * 0.78;
+      if (ringElapsed >= ringDur) continue;
+      const p = ringElapsed / ringDur;
+      const r = MAX_R * p;
+      const env = p < 0.08 ? p / 0.08 : Math.max(0, 1 - (p - 0.08) / 0.92);
+      if (env < 0.01) continue;
+      const lw = s * (4.5 - p * 2.5);
+      ctx.strokeStyle = `rgba(190,100,255,${(env * 0.40).toFixed(3)})`; ctx.lineWidth = lw;
+      ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = `rgba(240,200,255,${(env * 0.22).toFixed(3)})`; ctx.lineWidth = lw * 0.35;
+      ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   // ── Plasma eruption event ──────────────────────────────────────────────────────
   _drawPlasmaEruption(ctx, W, H, now) {
     const er = this._eruption;
@@ -3493,7 +3570,7 @@ class SpaceChurchOverlay {
     if (env < 0.01) return;
     const RADIUS_PX = 160, EXT_R = RADIUS_PX*2.5, REGEN_MS = 2500, ARM_N = 7;
     const s = this._s();
-    const c = this._ptc(...SC_ANCHORS.plasmaCenter);
+    const c = this._ptc(...this._anc('plasmaCenter'));
     const R = EXT_R * s;
     const drift = now * 0.000048;
     if (now - this._eruptRegenAt > REGEN_MS) { this._plasmaRegen(c, R, drift, this._eruptArms, ARM_N, 0); this._eruptRegenAt = now; }
