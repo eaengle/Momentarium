@@ -1596,6 +1596,7 @@ class TechRuinOverlay {
     this._initFireflies();
     this._initRainAmb();
     this._initWaterfallArrays();
+    this._rainStir = 0; this._t = 0;
     this._glitchTimer = 0; this._glitchMul = 1;
     this._glowSurgeT0 = -Infinity;
     this._surgeT0 = -Infinity; this._surgeFF = [];
@@ -1620,6 +1621,8 @@ class TechRuinOverlay {
     if (!EV_NAMES_TECH_RUIN.includes(name)) return;
     this._fireEvent(name, t);
   }
+
+  stir(s) { this._rainStir = s; }
 
   _def(min, max) { return { min, max, next: min * (0.4 + Math.random() * 0.8) }; }
   _initEventTimers() {
@@ -1672,6 +1675,7 @@ class TechRuinOverlay {
 
   // ── Update ─────────────────────────────────────────────────────────────────
   update(dt, t) {
+    this._t = t;
     for (const [name, tm] of Object.entries(this._ev)) {
       if (t >= tm.next) this._fireEvent(name, t);
     }
@@ -2715,8 +2719,10 @@ class TechRuinOverlay {
     this._heavyRain = { t0: -Infinity, pts: [], mist: [], splashes: [] };
   }
   _ambIntensity(t) {
+    const vis = Math.min(1, this._rainStir / 8);
+    if (vis <= 0) return 0;
     const raw = Math.sin(t * 0.095 + this._ambPH1) * Math.sin(t * 0.143 + this._ambPH2);
-    return clamp(0.42 + Math.max(0, raw) * 0.58, 0, 1);
+    return clamp((0.42 + Math.max(0, raw) * 0.58) * vis, 0, 1);
   }
   _triggerHeavyRain(t) {
     const W = this.W, H = this.H;
@@ -2737,6 +2743,8 @@ class TechRuinOverlay {
     }));
   }
   _updateRainAmb(dt, t) {
+    this._rainStir *= Math.pow(0.93, dt / 16.667);
+    if (this._rainStir < 0.001) { this._rainStir = 0; return; }
     const step = dt / 16.667;
     const W = this.W, H = this.H;
     for (const d of this._ambSheets) {
