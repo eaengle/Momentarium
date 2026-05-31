@@ -1867,11 +1867,11 @@ class TechRuinOverlay {
       t: (i + 0.5) / THREADS, phase: rand(0, TAU), speed: rand(0.26, 0.54),
       alpha: rand(0.16, 0.36), wFreq: rand(0.14, 0.30), wAmp: rand(0.4, 1.0),
     }));
-    this._wfMistL = Array.from({ length: 5 }, () => ({ t: rand(0, 1), phase: rand(0, TAU), r: rand(1.75, 4), alpha: rand(0.09, 0.18) }));
-    this._wfMistR = Array.from({ length: 7 }, () => ({ t: rand(0, 1), phase: rand(0, TAU), r: rand(2.25, 5), alpha: rand(0.10, 0.20) }));
+    this._wfMistL = Array.from({ length: 5 }, () => ({ t: rand(0, 1), phase: rand(0, TAU), r: rand(1.75, 4), alpha: rand(0.045, 0.09) }));
+    this._wfMistR = Array.from({ length: 7 }, () => ({ t: rand(0, 1), phase: rand(0, TAU), r: rand(2.25, 5), alpha: rand(0.05, 0.10) }));
     this._wfBillow = Array.from({ length: 6 }, () => ({
       t: rand(0.05, 0.95), phase: rand(0, TAU), rBase: rand(7.5, 13.75),
-      rVar: rand(2.5, 5), alpha: rand(0.09, 0.16), driftAmp: rand(5, 12),
+      rVar: rand(2.5, 5), alpha: rand(0.045, 0.08), driftAmp: rand(5, 12),
       driftFreq: rand(0.18, 0.36),
     }));
     // Portrait-only: larger puffs filling the bottom quarter of the fall
@@ -1881,7 +1881,7 @@ class TechRuinOverlay {
       phase:     rand(0, TAU),
       rBase:     rand(13.75, 25),
       rVar:      rand(5, 10),
-      alpha:     rand(0.12, 0.22),
+      alpha:     rand(0.06, 0.11),
       driftAmp:  rand(12, 25),
       driftFreq: rand(0.12, 0.26),
     }));
