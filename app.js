@@ -5,6 +5,8 @@ import { BubblesOverlay, LightRaysOverlay, FishSilhouettesOverlay } from './scen
 import { TechRuinOverlay, preloadTechRuinSprites, EV_NAMES_TECH_RUIN } from './scenes/tech-ruin/scene.js';
 import { SpaceChurchOverlay, preloadSpaceChurchSprites } from './scenes/space-church/scene.js';
 
+const _ric = window.requestIdleCallback || (cb => setTimeout(cb, 50));
+
 const SCENES = [
   {
     id:         'tiny-cabin',
@@ -47,17 +49,30 @@ const SCENES = [
   },
 ];
 
-async function preloadScenes(scenes) {
-  await Promise.all(scenes.map(async s => {
-    if (typeof s.background === 'object') {
-      [s.imagePortrait, s.imageLandscape] = await Promise.all([
-        loadImage(s.background.portrait),
-        loadImage(s.background.landscape),
-      ]);
-    } else {
-      s.image = await loadImage(s.background);
-    }
-  }));
+async function preloadScene(s) {
+  if (typeof s.background === 'object') {
+    [s.imagePortrait, s.imageLandscape] = await Promise.all([
+      loadImage(s.background.portrait),
+      loadImage(s.background.landscape),
+    ]);
+  } else {
+    s.image = await loadImage(s.background);
+  }
+}
+
+function scheduleIdleLoads(skipIdx, app) {
+  const rest     = SCENES.filter((_, i) => i !== skipIdx);
+  const adjacent = rest.filter(s => Math.abs(SCENES.indexOf(s) - skipIdx) === 1);
+  const distant  = rest.filter(s => !adjacent.includes(s));
+  const load = scenes => {
+    const s = scenes.shift();
+    if (!s) return;
+    preloadScene(s).then(() => {
+      app._reinitOverlays();
+      if (scenes.length) _ric(() => load(scenes));
+    });
+  };
+  _ric(() => load([...adjacent, ...distant]));
 }
 
 const OVERLAY_REGISTRY = {
@@ -156,9 +171,10 @@ class MomentariumApp {
     this._initInput();
     this._initShake();
 
-    Promise.all([preloadScenes(SCENES), preloadTinyCabinAssets(), preloadTechRuinSprites(), preloadSpaceChurchSprites()]).then(() => {
+    Promise.all([preloadScene(SCENES[0]), preloadTinyCabinAssets(), preloadTechRuinSprites(), preloadSpaceChurchSprites()]).then(() => {
       this._buildOverlays();
       requestAnimationFrame(t => this._loop(t));
+      scheduleIdleLoads(0, this);
     });
   }
 
@@ -396,6 +412,10 @@ class MomentariumApp {
     if (this.fadingOut || this.fadingIn) return;
     const next = ((idx % SCENES.length) + SCENES.length) % SCENES.length;
     if (next === this.activeIdx) return;
+    const s = SCENES[next];
+    if (!s.image && !s.imagePortrait && !s.imageLandscape) {
+      preloadScene(s).then(() => this._reinitOverlays());
+    }
     this.pendingIdx = next;
     this.fadingOut  = true;
     this.transT     = performance.now();
