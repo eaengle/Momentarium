@@ -2902,6 +2902,13 @@ const SC_ANCHORS_P = {
   plasmaCenter:  [466, 891],
   archArcLeft:   [255, 555],
   archArcRight:  [685, 555],
+  // Pillar anchors — measured with ?debug 2026-06-03 (TL=TR=pedestal-top-center; ImageTop offset by depth)
+  pillar1TopLeft:  [311,1071], pillar1TopRight:  [311,1071], pillar1ImageTop:  [311, 931], pillar1Lowest:  [311,1071],
+  pillar2TopLeft:  [ 96,1144], pillar2TopRight:  [ 96,1144], pillar2ImageTop:  [ 96, 897], pillar2Lowest:  [ 96,1144],
+  pillar3TopLeft:  [624,1069], pillar3TopRight:  [624,1069], pillar3ImageTop:  [624, 929], pillar3Lowest:  [624,1069],
+  pillar4TopLeft:  [704,1096], pillar4TopRight:  [704,1096], pillar4ImageTop:  [704, 911], pillar4Lowest:  [704,1096],
+  pillar5TopLeft:  [845,1147], pillar5TopRight:  [845,1147], pillar5ImageTop:  [845, 829], pillar5Lowest:  [845,1147],
+  pillar6TopLeft:  [232,1098], pillar6TopRight:  [232,1098], pillar6ImageTop:  [232, 913], pillar6Lowest:  [232,1098],
 };
 
 const scHoloImgs   = { sword: [], soldier: [], angel: [], abstract: [], priest: [], alien: [] };
@@ -2980,11 +2987,11 @@ class SpaceChurchOverlay {
       const MAX_P = 7, parts = [];
       function getRect() {
         if (!self._ready()) return null;
-        const ancTL = SC_ANCHORS[tl], ancTR = SC_ANCHORS[tr], ancTC = SC_ANCHORS[it];
+        const ancTL = self._anc(tl), ancTR = self._anc(tr), ancTC = self._anc(it);
         if (!ancTL || !ancTR || !ancTC) return null;
         const sTL = self._ptc(...ancTL), sTR = self._ptc(...ancTR), sTC = self._ptc(...ancTC);
         const s    = self._s();
-        const loAnc = SC_ANCHORS[lo];
+        const loAnc = self._anc(lo);
         const pillarY = loAnc ? self._ptc(...loAnc).y : (sTL.y + sTR.y) / 2;
         const img0 = imgs[0];
         if (!img0 || !img0.complete || !img0.naturalWidth) return null;
@@ -3142,6 +3149,9 @@ class SpaceChurchOverlay {
       this._drawPlasmaBall(ctx, W, H, now);
       this._tickFloorConv(now);
       this._drawFloorLines(ctx, W, H, now);
+      for (const p of this._pillars) p.drawGlow(ctx, now);
+      for (const p of this._pillars) p.drawImage(ctx, now);
+      for (const p of this._pillars) p.drawParticles(ctx, this._lastDt || 16);
       return;
     }
     this._tickCatDim(now);
