@@ -9,7 +9,7 @@ A snowy night cabin under an aurora sky. Dual portrait/landscape background imag
 
 **Overlays:** stars twinkle, aurora shimmer, window glow, falling snow, chimney smoke, timed micro-events.
 
-**Micro-events** fire automatically every 10–18 seconds (weighted toward long-idle events):
+**Micro-events** each run on their own independent timer. Multiple events can be active simultaneously. Per-event intervals (seconds): `chimneySpark` 22–50, `shootingStar` 28–58, `branchDrop` 38–75, `snowSlip` 42–82, `smokeBurst` 45–85, `pondCrack` 48–90, `windowShadow` 52–95, `rabbit` 58–105, `fox` 62–110, `deer` 75–140, `owl` 80–150.
 
 | Event | Duration | Description |
 |---|---|---|
@@ -220,8 +220,11 @@ Enable `?debug` in the URL to click anywhere on the canvas and log the correspon
 ## Adding a Micro-Event (Tiny Cabin)
 
 1. Add the event name to `EV_NAMES_CABIN` in `scenes/tiny-cabin/scene.js`.
-2. Add a drawing branch in `CabinEventsOverlay.draw()` keyed on `ev.active === 'yourEvent'`.
-3. Set `ev.active = null` when `et > dur` to end the event.
+2. Add a `yourEvent: { min, max }` entry to the `_timers` object in `CabinEventsOverlay.init()` (seconds between firings).
+3. Add a drawing branch in `CabinEventsOverlay.draw()` keyed on `ev.name === 'yourEvent'`.
+4. Set `ev.done = true` when `et > dur` to end the event.
+
+Events use the same per-event independent timer architecture as Tech Ruin and Space Church — multiple events can run concurrently.
 
 If the event needs a sprite, follow the deer/owl/rabbit pattern: add a preload function, call it in the startup `Promise.all`, and reference the loaded image in your draw branch.
 
