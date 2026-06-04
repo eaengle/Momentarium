@@ -217,16 +217,16 @@ Enable `?debug` in the URL to click anywhere on the canvas and log the correspon
 5. Drop background images into `assets/scenes/<id>/`.
 6. Add the image paths to the `ASSETS` array in `sw.js` and bump the `CACHE` version string.
 
-## Adding a Micro-Event (Tiny Cabin)
+## Adding a Micro-Event
 
-1. Add the event name to `EV_NAMES_CABIN` in `scenes/tiny-cabin/scene.js`.
-2. Add a `yourEvent: { min, max }` entry to the `_timers` object in `CabinEventsOverlay.init()` (seconds between firings).
-3. Add a drawing branch in `CabinEventsOverlay.draw()` keyed on `ev.name === 'yourEvent'`.
-4. Set `ev.done = true` when `et > dur` to end the event.
+All three event scenes (Tiny Cabin, Tech Ruin, Space Church) use the same architecture: each event has its own independent timer, multiple events can run concurrently, and active event state is stored per-instance in the `_active` array.
 
-Events use the same per-event independent timer architecture as Tech Ruin and Space Church — multiple events can run concurrently.
+1. Add the event name to the scene's `EV_NAMES_*` array in its `scene.js`.
+2. Add a `yourEvent: { min, max }` entry to `_timers` in the overlay's `init()` (values are seconds between firings).
+3. Add a drawing branch in `draw()` keyed on `ev.name === 'yourEvent'`. Use `et = t - ev.start` for elapsed time, `ev.dir` for a random direction (±1, set at fire time), and `ev.data` for any per-instance state initialized on first draw.
+4. Set `ev.done = true` when the event duration has elapsed — it will be filtered from `_active` after the draw loop.
 
-If the event needs a sprite, follow the deer/owl/rabbit pattern: add a preload function, call it in the startup `Promise.all`, and reference the loaded image in your draw branch.
+If the event needs a sprite, add a preload function, call it in the startup `Promise.all` in `app.js`, and reference the loaded image in your draw branch.
 
 ## PWA / Service Worker
 
