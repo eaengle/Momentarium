@@ -290,6 +290,7 @@ class SpaceChurchOverlay {
       this._drawPulsarRipple(ctx, W, H, now);
       this._drawRobotProcession(ctx, W, H, now);
       for (const p of this._pillars) p.drawParticles(ctx, this._lastDt || 16);
+      this._drawFloatRobot(ctx, W, H, now);
       return;
     }
     this._tickCatDim(now);
@@ -995,18 +996,26 @@ class SpaceChurchOverlay {
     const elapsed = now - fr.startAt;
     const DESC=3000,FLOAT=4000,LOOK=3000,EXIT=3500,TOT=DESC+FLOAT+LOOK+EXIT;
     if (elapsed >= TOT) { fr.active = false; return; }
-    const LEFT_X=250,RIGHT_X=1422,CENTER_X=836,FLOAT_Y=500,PAINT_H=160;
+    const PAINT_H=160;
     const s = this._s();
     const dh = PAINT_H * s;
     const eio = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
-    const entryX  = fr.dir===-1 ? LEFT_X : RIGHT_X;
-    const sidePos  = this._ptc(entryX,  FLOAT_Y);
-    const centerPos= this._ptc(CENTER_X,FLOAT_Y);
+    const portrait = W <= H;
+    let sidePos, centerPos;
+    if (portrait) {
+      const entryX = fr.dir === -1 ? 158 : 783;  // 783 = 941-158 mirrored
+      sidePos   = this._ptc(entryX, 786);
+      centerPos = this._ptc(472, 807);
+    } else {
+      const entryX = fr.dir === -1 ? 250 : 1422;
+      sidePos   = this._ptc(entryX, 500);
+      centerPos = this._ptc(836, 500);
+    }
     let img, cx, cy, alpha=1.0, flipX=false;
     if (elapsed < DESC) {
       const p=eio(elapsed/DESC); img=scRobotImgs.floatDescent; cx=sidePos.x; cy=sidePos.y*p; alpha=Math.min(1,elapsed/600); flipX=fr.dir===1;
     } else if (elapsed < DESC+FLOAT) {
-      const p=eio((elapsed-DESC)/FLOAT); img=scRobotImgs.floatSide; cx=sidePos.x+(centerPos.x-sidePos.x)*p; cy=sidePos.y; flipX=fr.dir===1;
+      const p=eio((elapsed-DESC)/FLOAT); img=scRobotImgs.floatSide; cx=sidePos.x+(centerPos.x-sidePos.x)*p; cy=sidePos.y+(centerPos.y-sidePos.y)*p; flipX=fr.dir===1;
     } else if (elapsed < DESC+FLOAT+LOOK) {
       const lt=elapsed-DESC-FLOAT; img=scRobotImgs.floatLook; cx=centerPos.x; cy=centerPos.y+Math.sin(lt*0.0028)*dh*0.05;
     } else {
