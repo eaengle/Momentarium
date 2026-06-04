@@ -241,7 +241,10 @@ const EV_NAMES_CABIN = [
 ];
 
 class CabinEventsOverlay {
-  constructor() { this._ev = null; }
+  constructor() {
+    this._timers = null;
+    this._active = [];
+  }
 
   init(W, H, img) {
     this.W = W; this.H = H; this._img = img || null;
@@ -284,58 +287,57 @@ class CabinEventsOverlay {
     this.treeRX    = tr.x;
     this.treeRTopY = tr.y;
 
-    if (!this._ev) {
-      const lf = {};
-      for (const n of EV_NAMES_CABIN) lf[n] = -999;
-      this._ev = { nextT: null, active: null, start: 0, dir: 1, lastFired: lf, data: {} };
+    if (!this._timers) {
+      this._timers = {
+        shootingStar: { min: 28,  max:  58 },
+        chimneySpark: { min: 22,  max:  50 },
+        smokeBurst:   { min: 45,  max:  85 },
+        pondCrack:    { min: 48,  max:  90 },
+        snowSlip:     { min: 42,  max:  82 },
+        branchDrop:   { min: 38,  max:  75 },
+        windowShadow: { min: 52,  max:  95 },
+        rabbit:       { min: 58,  max: 105 },
+        fox:          { min: 62,  max: 110 },
+        deer:         { min: 75,  max: 140 },
+        owl:          { min: 80,  max: 150 },
+      };
+      for (const tm of Object.values(this._timers)) {
+        tm.next = tm.min * (0.2 + Math.random() * 0.6);
+      }
     }
   }
 
   triggerEvent(name, t) {
     if (!EV_NAMES_CABIN.includes(name)) return;
-    const ev = this._ev;
-    ev.active            = name;
-    ev.lastFired[name]   = t;
-    ev.start             = t;
-    ev.dir               = Math.random() < 0.5 ? 1 : -1;
-    ev.data              = {};
-    ev.nextT             = t + 12 + Math.random() * 8;
+    this._active.push({ name, start: t, dir: Math.random() < 0.5 ? 1 : -1, data: {} });
+    const tm = this._timers?.[name];
+    if (tm) tm.next = t + tm.min + Math.random() * (tm.max - tm.min);
     console.info(`[cabin event] ${name}`);
   }
 
   update(dt, t) {
-    const ev = this._ev;
-    if (!ev) return;
-    if (ev.nextT === null) ev.nextT = t + 5;
-    if (ev.active || t < ev.nextT) return;
-
-    const weights = EV_NAMES_CABIN.map(n => Math.min(1.0, 0.01 + (t - ev.lastFired[n]) * 0.012));
-    const total   = weights.reduce((a, b) => a + b, 0);
-    let r = Math.random() * total;
-    let chosen = EV_NAMES_CABIN[EV_NAMES_CABIN.length - 1];
-    for (let i = 0; i < EV_NAMES_CABIN.length; i++) {
-      r -= weights[i];
-      if (r <= 0) { chosen = EV_NAMES_CABIN[i]; break; }
+    if (!this._timers) return;
+    for (const [name, tm] of Object.entries(this._timers)) {
+      if (t >= tm.next) {
+        tm.next = t + tm.min + Math.random() * (tm.max - tm.min);
+        this._active.push({ name, start: t, dir: Math.random() < 0.5 ? 1 : -1, data: {} });
+        console.info(`[cabin event] ${name}`);
+      }
     }
-    ev.active            = chosen;
-    ev.lastFired[chosen] = t;
-    ev.start             = t;
-    ev.dir               = Math.random() < 0.5 ? 1 : -1;
-    ev.data              = {};
-    ev.nextT             = t + 10 + Math.random() * 8;
   }
 
   draw(ctx, W, H, t) {
-    const ev = this._ev;
-    if (!ev || !ev.active) return;
-    const et = t - ev.start;
+    if (!this._active.length) return;
     const { S, gy, chx, chy } = this;
-    ctx.save();
+
+    for (const ev of this._active) {
+      const et = t - ev.start;
+      ctx.save();
 
     // ── SHOOTING STAR ──────────────────────────────────────────────────────────
-    if (ev.active === 'shootingStar') {
+    if (ev.name === 'shootingStar') {
       const dur = 1.8;
-      if (et > dur) { ev.active = null; } else {
+      if (et > dur) { ev.done = true; } else {
         if (!ev.data.init) {
           ev.data.init  = true;
           ev.data.x     = W * (0.08 + Math.random() * 0.55);
@@ -372,9 +374,9 @@ class CabinEventsOverlay {
       }
 
     // ── CHIMNEY SPARK ──────────────────────────────────────────────────────────
-    } else if (ev.active === 'chimneySpark') {
+    } else if (ev.name === 'chimneySpark') {
       const dur = 2.2;
-      if (et > dur) { ev.active = null; } else {
+      if (et > dur) { ev.done = true; } else {
         if (!ev.data.init) {
           ev.data.init   = true;
           ev.data.sparks = Array.from({ length: 12 }, (_, i) => ({
@@ -403,9 +405,9 @@ class CabinEventsOverlay {
       }
 
     // ── SMOKE BURST ────────────────────────────────────────────────────────────
-    } else if (ev.active === 'smokeBurst') {
+    } else if (ev.name === 'smokeBurst') {
       const dur = 5.0;
-      if (et > dur) { ev.active = null; } else {
+      if (et > dur) { ev.done = true; } else {
         if (!ev.data.init) {
           ev.data.init  = true;
           ev.data.puffs = Array.from({ length: 12 }, (_, i) => ({
@@ -444,9 +446,9 @@ class CabinEventsOverlay {
       }
 
     // ── POND CRACK ─────────────────────────────────────────────────────────────
-    } else if (ev.active === 'pondCrack') {
+    } else if (ev.name === 'pondCrack') {
       const dur = 2.6;
-      if (et > dur) { ev.active = null; } else {
+      if (et > dur) { ev.done = true; } else {
         if (!ev.data.init) {
           ev.data.init  = true;
           ev.data.x     = this.pondCx + rand(-this.pondRx * 0.35, this.pondRx * 0.35);
@@ -484,9 +486,9 @@ class CabinEventsOverlay {
       }
 
     // ── SNOW SLIP ──────────────────────────────────────────────────────────────
-    } else if (ev.active === 'snowSlip') {
+    } else if (ev.name === 'snowSlip') {
       const dur = 3.2;
-      if (et > dur) { ev.active = null; } else {
+      if (et > dur) { ev.done = true; } else {
         if (!ev.data.init) {
           ev.data.init = true;
           ev.data.side = Math.random() < 0.5 ? -1 : 1;
@@ -528,9 +530,9 @@ class CabinEventsOverlay {
       }
 
     // ── BRANCH DROP ────────────────────────────────────────────────────────────
-    } else if (ev.active === 'branchDrop') {
+    } else if (ev.name === 'branchDrop') {
       const dur = 2.8;
-      if (et > dur) { ev.active = null; } else {
+      if (et > dur) { ev.done = true; } else {
         if (!ev.data.init) {
           ev.data.init = true;
           const useL   = Math.random() < 0.5;
@@ -551,9 +553,9 @@ class CabinEventsOverlay {
       }
 
     // ── WINDOW SHADOW ──────────────────────────────────────────────────────────
-    } else if (ev.active === 'windowShadow') {
+    } else if (ev.name === 'windowShadow') {
       const dur = 5.0;
-      if (et > dur) { ev.active = null; } else {
+      if (et > dur) { ev.done = true; } else {
         if (!ev.data.init) {
           ev.data.init  = true;
           ev.data.which = Math.random() < 0.5 ? 0 : 1;
@@ -585,9 +587,9 @@ class CabinEventsOverlay {
       }
 
     // ── RABBIT ─────────────────────────────────────────────────────────────────
-    } else if (ev.active === 'rabbit') {
+    } else if (ev.name === 'rabbit') {
       const dur = 9;
-      if (et > dur) { ev.active = null; } else {
+      if (et > dur) { ev.done = true; } else {
         const p         = et / dur;
         const startX    = ev.dir > 0 ? -S * 0.08 : W + S * 0.08;
         const endX      = ev.dir > 0 ? W + S * 0.08 : -S * 0.08;
@@ -615,9 +617,9 @@ class CabinEventsOverlay {
       }
 
     // ── FOX ────────────────────────────────────────────────────────────────────
-    } else if (ev.active === 'fox') {
+    } else if (ev.name === 'fox') {
       const dur = 7.5;
-      if (et > dur) { ev.active = null; } else {
+      if (et > dur) { ev.done = true; } else {
         const p      = et / dur;
         const startX = ev.dir > 0 ? -S * 0.16 : W + S * 0.16;
         const endX   = ev.dir > 0 ? W + S * 0.16 : -S * 0.16;
@@ -690,9 +692,9 @@ class CabinEventsOverlay {
       }
 
     // ── DEER ───────────────────────────────────────────────────────────────────
-    } else if (ev.active === 'deer') {
+    } else if (ev.name === 'deer') {
       const dur = 20;
-      if (et > dur) { ev.active = null; } else {
+      if (et > dur) { ev.done = true; } else {
         const p       = et / dur;
         const ps      = 0.40, pe = 0.58;
         const xp      = p < ps ? p / ps * 0.5 : p < pe ? 0.5 : 0.5 + (p - pe) / (1 - pe) * 0.5;
@@ -750,9 +752,9 @@ class CabinEventsOverlay {
       }
 
     // ── OWL ────────────────────────────────────────────────────────────────────
-    } else if (ev.active === 'owl') {
+    } else if (ev.name === 'owl') {
       const dur = 14;
-      if (et > dur) { ev.active = null; } else {
+      if (et > dur) { ev.done = true; } else {
         const p        = et / dur;
         const sz       = S * 0.070;
         const perchX   = this.treeLX + S * 0.020;
@@ -914,9 +916,12 @@ class CabinEventsOverlay {
           }
         }
       }
+      }
+
+      ctx.restore();
     }
 
-    ctx.restore();
+    this._active = this._active.filter(ev => !ev.done);
   }
 }
 
