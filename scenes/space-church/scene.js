@@ -20,8 +20,8 @@ const SC_ANCHORS = {
 // Portrait image (941×1672) — measured with ?debug 2026-05-31
 const SC_ANCHORS_P = {
   plasmaCenter:  [466, 891],
-  archArcLeft:   [255, 555],
-  archArcRight:  [685, 555],
+  archArcLeft:   [161, 563],
+  archArcRight:  [782, 564],
   // Pillar anchors — measured with ?debug 2026-06-03 (TL=TR=pedestal-top-center; ImageTop offset by depth)
   pillar1TopLeft:  [311,1071], pillar1TopRight:  [311,1071], pillar1ImageTop:  [311, 931], pillar1Lowest:  [311,1071],
   pillar2TopLeft:  [ 96,1144], pillar2TopRight:  [ 96,1144], pillar2ImageTop:  [ 96, 897], pillar2Lowest:  [ 96,1144],
@@ -30,6 +30,12 @@ const SC_ANCHORS_P = {
   pillar5TopLeft:  [845,1147], pillar5TopRight:  [845,1147], pillar5ImageTop:  [845, 829], pillar5Lowest:  [845,1147],
   pillar6TopLeft:  [232,1098], pillar6TopRight:  [232,1098], pillar6ImageTop:  [232, 913], pillar6Lowest:  [232,1098],
 };
+
+const EV_NAMES_SPACE_CHURCH = [
+  'hologram_glitch', 'floor_convergence', 'arch_arc', 'portal_surge',
+  'plasma_eruption', 'cathedral_dimming', 'rune_flash', 'robot_procession',
+  'float_robot', 'pulsar_ripple',
+];
 
 const scHoloImgs   = { sword: [], soldier: [], angel: [], abstract: [], priest: [], alien: [] };
 const scRobotImgs  = {};
@@ -257,6 +263,11 @@ class SpaceChurchOverlay {
     }
   }
 
+  triggerEvent(name, t) {
+    if (!EV_NAMES_SPACE_CHURCH.includes(name)) return;
+    this._fireEvent(name, t);
+  }
+
   // ── Draw ──────────────────────────────────────────────────────────────────────
   draw(ctx, W, H, t) {
     this.W = W; this.H = H;
@@ -265,12 +276,19 @@ class SpaceChurchOverlay {
       this._tickCatDim(now);
       this._drawCathedralDimming(ctx, W, H);
       this._drawBackWindowStars(ctx, W, H, now);
-      this._drawGodRaysPortrait(ctx, W, H, t);
+      this._drawGodRays(ctx, W, H, now);
       this._drawPlasmaBall(ctx, W, H, now);
-      this._tickFloorConv(now);
-      this._drawFloorLines(ctx, W, H, now);
+      this._drawPlasmaEruption(ctx, W, H, now);
+      this._drawPortalSurge(ctx, W, H, now);
+      this._drawArchArc(ctx, W, H, now);
       for (const p of this._pillars) p.drawGlow(ctx, now);
       for (const p of this._pillars) p.drawImage(ctx, now);
+      this._drawRuneFlash(ctx, W, H, now);
+      this._tickFloorConv(now);
+      this._drawFloorLines(ctx, W, H, now);
+      this._drawGroundFogPortrait(ctx, W, H, now);
+      this._drawPulsarRipple(ctx, W, H, now);
+      this._drawRobotProcession(ctx, W, H, now);
       for (const p of this._pillars) p.drawParticles(ctx, this._lastDt || 16);
       return;
     }
@@ -294,35 +312,32 @@ class SpaceChurchOverlay {
     this._drawFloatRobot(ctx, W, H, now);
   }
 
-  // ── Portrait fallback ─────────────────────────────────────────────────────────
-  _drawGodRaysPortrait(ctx, W, H, t) {
-    const SHAFTS = [
-      { nx: 0.20, angle: -0.08, phase: 0.0 },
-      { nx: 0.40, angle: -0.03, phase: 1.2 },
-      { nx: 0.60, angle:  0.03, phase: 2.6 },
-      { nx: 0.80, angle:  0.08, phase: 4.1 },
+  // ── Portrait ground fog ───────────────────────────────────────────────────────
+  _drawGroundFogPortrait(ctx, W, H, now) {
+    if (!this._ready()) return;
+    // Portrait paint space 941×1672; floor level ≈ y 1150–1600
+    const BLOBS = [
+      [470,1540,270,110,0.00,1.0],[220,1530,210,100,1.20,0.95],[720,1535,200, 95,2.50,0.95],
+      [470,1390,185, 80,0.70,0.88],[200,1380,155, 70,3.10,0.84],[740,1385,148, 68,1.90,0.84],
+      [ 80,1400,130, 62,4.20,0.80],[860,1400,130, 62,0.90,0.80],
+      [470,1250,140, 58,1.70,0.72],[300,1245,115, 50,2.20,0.68],[640,1248,112, 48,0.45,0.68],
+      [470,1160, 95, 38,0.55,0.50],[350,1155, 80, 32,2.80,0.46],[600,1158, 78, 30,1.50,0.46],
     ];
+    const s = this._s();
     ctx.save(); ctx.globalCompositeOperation = 'screen';
-    for (const sh of SHAFTS) {
-      const pulse = 0.45 + 0.35 * Math.sin(t * 0.22 + sh.phase) + 0.20 * Math.sin(t * 0.57 + sh.phase * 1.5);
-      const cx  = W * sh.nx;
-      const tip = -H * 0.05;
-      const len = H * 1.1;
-      const hw  = W * 0.08;
-      const bx0 = cx - hw + Math.tan(sh.angle) * len * 0.5;
-      const bx1 = cx + hw + Math.tan(sh.angle) * len * 0.5;
-      const grad = ctx.createLinearGradient(cx, tip, cx, tip + len);
-      const a0 = 0.06 * pulse, a1 = 0.0;
-      grad.addColorStop(0,   `rgba(200,180,255,${a0.toFixed(3)})`);
-      grad.addColorStop(0.6, `rgba(160,120,255,${(a0 * 0.55).toFixed(3)})`);
-      grad.addColorStop(1,   `rgba(120,80,220,${a1})`);
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(cx, tip);
-      ctx.lineTo(bx0, tip + len);
-      ctx.lineTo(bx1, tip + len);
-      ctx.closePath();
-      ctx.fill();
+    for (const [px, py, rx, ry, phase, baseAlpha] of BLOBS) {
+      const dx = 4.5*Math.sin(now*0.00031+phase), dy = 2.0*Math.cos(now*0.00047+phase*1.3);
+      const c   = this._ptc(px+dx, py+dy);
+      const crx = rx*s, cry = ry*s;
+      const breathe = 0.72 + 0.28 * Math.sin(now*0.00062+phase*0.8);
+      const a = baseAlpha * breathe * 0.75;
+      ctx.save(); ctx.translate(c.x, c.y); ctx.scale(crx, cry);
+      const g = ctx.createRadialGradient(0,0,0,0,0,1);
+      g.addColorStop(0,    `rgba(218,208,255,${a})`);
+      g.addColorStop(0.45, `rgba(208,198,255,${(a*0.55).toFixed(3)})`);
+      g.addColorStop(1,    'rgba(195,185,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,1,0,TAU); ctx.fill();
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -411,10 +426,10 @@ class SpaceChurchOverlay {
       { tl: 'pillar5TopLeft', tr: 'pillar5TopRight', phase: 2.25 },
       { tl: 'pillar6TopLeft', tr: 'pillar6TopRight', phase: 0.9  },
     ];
-    const src = this._ptc(...SC_ANCHORS.plasmaCenter);
+    const src = this._ptc(...this._anc('plasmaCenter'));
     ctx.save(); ctx.globalCompositeOperation = 'screen';
     for (const bm of BEAMS) {
-      const tl = SC_ANCHORS[bm.tl], tr = SC_ANCHORS[bm.tr];
+      const tl = this._anc(bm.tl), tr = this._anc(bm.tr);
       if (!tl || !tr) continue;
       const stl = this._ptc(...tl), str = this._ptc(...tr);
       const pcx = (stl.x + str.x) / 2, pcy = (stl.y + str.y) / 2;
@@ -690,7 +705,7 @@ class SpaceChurchOverlay {
   // ── Plasma eruption event ──────────────────────────────────────────────────────
   _drawPlasmaEruption(ctx, W, H, now) {
     const er = this._eruption;
-    if (!er.active || !this._ready() || !SC_ANCHORS.plasmaCenter) return;
+    if (!er.active || !this._ready() || !this._anc('plasmaCenter')) return;
     if (er.startAt < 0) er.startAt = now;
     const elapsed = now - er.startAt;
     const DUR = 12000, RISE = 1800, FALL = 2500, HOLD = DUR - RISE - FALL;
@@ -727,27 +742,38 @@ class SpaceChurchOverlay {
   _drawPortalSurge(ctx, W, H, now) {
     const ps = this._portalSurge;
     if (!ps.active || !this._ready()) return;
+    const portrait = this.W <= this.H;
     if (ps.startAt < 0) {
       ps.startAt = now;
       const RAY_N = 14;
-      ps.rays = Array.from({length: RAY_N}, (_, i) => ({
-        tx: 715+(i/(RAY_N-1))*245, ty: 510, hw: 0.028+Math.random()*0.048, phase: Math.random()*TAU, freq: 0.0010+Math.random()*0.0028 }));
-      ps.motes = Array.from({length: 30}, () => ({
-        px: 718+Math.random()*238, py: 185+Math.random()*310, r: 0.45+Math.random()*1.8, phase: Math.random()*TAU, freq: 0.0022+Math.random()*0.0048 }));
+      if (portrait) {
+        ps.rays = Array.from({length: RAY_N}, (_, i) => ({
+          tx: 370+(i/(RAY_N-1))*191, ty: 930, hw: 0.028+Math.random()*0.048, phase: Math.random()*TAU, freq: 0.0010+Math.random()*0.0028 }));
+        ps.motes = Array.from({length: 30}, () => ({
+          px: 370+Math.random()*191, py: 621+Math.random()*324, r: 0.45+Math.random()*1.8, phase: Math.random()*TAU, freq: 0.0022+Math.random()*0.0048 }));
+      } else {
+        ps.rays = Array.from({length: RAY_N}, (_, i) => ({
+          tx: 715+(i/(RAY_N-1))*245, ty: 510, hw: 0.028+Math.random()*0.048, phase: Math.random()*TAU, freq: 0.0010+Math.random()*0.0028 }));
+        ps.motes = Array.from({length: 30}, () => ({
+          px: 718+Math.random()*238, py: 185+Math.random()*310, r: 0.45+Math.random()*1.8, phase: Math.random()*TAU, freq: 0.0022+Math.random()*0.0048 }));
+      }
     }
     const elapsed = now - ps.startAt;
     const DUR = 8000;
     if (elapsed >= DUR) { ps.active = false; return; }
     const env = Math.sin((elapsed/DUR)*Math.PI);
     if (env < 0.01) return;
-    const OUTER = [[713,537],[712,364],[750,319],[837,119],[921,317],[954,364],[957,553]];
+    const OUTER = portrait
+      ? [[370,945],[370,815],[399,779],[468,621],[533,771],[558,813],[561,945]]
+      : [[713,537],[712,364],[750,319],[837,119],[921,317],[954,364],[957,553]];
     const s = this._s();
     ctx.save();
     const os = OUTER.map(([px, py]) => this._ptc(px, py));
     ctx.beginPath(); ctx.moveTo(os[0].x, os[0].y);
     for (let i = 1; i < os.length; i++) ctx.lineTo(os[i].x, os[i].y);
     ctx.closePath(); ctx.clip();
-    const peak = this._ptc(837, 119), base = this._ptc(836, 553);
+    const peak = portrait ? this._ptc(469, 608) : this._ptc(837, 119);
+    const base = portrait ? this._ptc(465, 945) : this._ptc(836, 553);
     const burstR = Math.hypot(base.x-peak.x, base.y-peak.y)*1.1;
     ctx.globalCompositeOperation = 'screen';
     const gr = ctx.createRadialGradient(peak.x,peak.y,0,peak.x,peak.y,burstR);
@@ -790,7 +816,7 @@ class SpaceChurchOverlay {
     const env = fp < 0.12 ? fp/0.12 : fp < 0.62 ? 1.0 : Math.max(0, 1-(fp-0.62)/0.38);
     if (env < 0.01) return;
     const s = this._s();
-    const a0 = this._ptc(...SC_ANCHORS.archArcLeft), a1 = this._ptc(...SC_ANCHORS.archArcRight);
+    const a0 = this._ptc(...this._anc('archArcLeft')), a1 = this._ptc(...this._anc('archArcRight'));
     function jag(x0,y0,x1,y1,segs) {
       const dx=x1-x0,dy=y1-y0,len=Math.sqrt(dx*dx+dy*dy),sp=len*0.13;
       const pts=[x0,y0];
@@ -868,11 +894,12 @@ class SpaceChurchOverlay {
     const s = this._s();
     ctx.save(); ctx.globalCompositeOperation='screen'; ctx.lineCap='round'; ctx.lineJoin='round';
     for (const { tl, tr, it, lo, tmpl } of rf.targets) {
-      const aTL=SC_ANCHORS[tl],aTR=SC_ANCHORS[tr],aIT=SC_ANCHORS[it],aLO=SC_ANCHORS[lo];
+      const aTL=this._anc(tl),aTR=this._anc(tr),aIT=this._anc(it),aLO=this._anc(lo);
       if (!aTL||!aTR||!aIT||!aLO) continue;
       const sTL=this._ptc(...aTL),sTR=this._ptc(...aTR),sIT=this._ptc(...aIT),sLO=this._ptc(...aLO);
       const cx=(sTL.x+sTR.x)/2, cy=(sIT.y+sLO.y)/2;
-      const runeW=(sTR.x-sTL.x)*0.72, runeH=(sLO.y-sIT.y)*0.58;
+      const runeH=(sLO.y-sIT.y)*0.58;
+      const runeW=Math.max((sTR.x-sTL.x)*0.72, runeH*0.80);
       const toPt=(nx,ny)=>({x:cx+nx*runeW/2,y:cy+ny*runeH/2});
       function strokePart(rawPts, frac) {
         const pts = rawPts.map(([nx,ny])=>toPt(nx,ny));
@@ -908,11 +935,20 @@ class SpaceChurchOverlay {
     if (!rb.active || !this._ready()) return;
     if (rb.startAt < 0) rb.startAt = now;
     const elapsed = now - rb.startAt;
-    const EMERGE=2000,WALK=4500,TURN=1500,FWD=6000,TOT=EMERGE+WALK+TURN+FWD;
+    const EMERGE=0,WALK=4500,TURN=1500,FWD=6000,TOT=EMERGE+WALK+TURN+FWD;
     if (elapsed >= TOT) { rb.active = false; return; }
-    const H_FAR=75, H_NEAR=220;
-    const OCC_L1=558,OCC_L2=613,OCC_R1=1059,OCC_R2=1115,OCC_FADE=32;
-    const OCC_EL1=434,OCC_EL2=489,OCC_ER1=1182,OCC_ER2=1240,OCC_EF=20;
+    const portrait = this.W <= this.H;
+    const H_FAR    = portrait ?  80 :  75;
+    const H_NEAR   = portrait ? 220 : 220;
+    const OCC_L1   = portrait ? 286 : 558,  OCC_L2  = portrait ? 337 : 613;
+    const OCC_R1   = portrait ? 604 : 1059, OCC_R2  = portrait ? 655 : 1115;
+    const OCC_FADE = portrait ?  18 :  32;
+    const OCC_EL1  = portrait ? 207 : 434,  OCC_EL2 = portrait ? 262 : 489;
+    const OCC_ER1  = portrait ? 679 : 1182, OCC_ER2 = portrait ? 734 : 1240;
+    const OCC_EF   = portrait ?  12 :  20;
+    const lEmgPx   = portrait ? 262 : 450,  lEntPx  = portrait ? 262 : 474;
+    const cenPx    = portrait ? 466 : 840;
+    const rEntPx   = portrait ? 679 : 1200, rEmgPx  = portrait ? 679 : 1210;
     const eio = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
     function occA(px,zA,zB,fw=OCC_FADE) {
       const mn=Math.min(zA,zB),mx=Math.max(zA,zB);
@@ -920,17 +956,21 @@ class SpaceChurchOverlay {
       return px<=mn?(mn-px)/fw:(px-mx)/fw;
     }
     const s = this._s();
-    const lEntry=this._ptc(474,670),rEntry=this._ptc(1200,676),center=this._ptc(840,676),exit=this._ptc(849,938);
-    const lEmerge=this._ptc(450,670),rEmerge=this._ptc(1210,676);
+    const lEntry  = portrait ? this._ptc(262,1109) : this._ptc(474,670);
+    const rEntry  = portrait ? this._ptc(679,1109) : this._ptc(1200,676);
+    const center  = portrait ? this._ptc(466,1109) : this._ptc(840,676);
+    const exit    = portrait ? this._ptc(466,1635) : this._ptc(849,938);
+    const lEmerge = portrait ? this._ptc(262,1109) : this._ptc(450,670);
+    const rEmerge = portrait ? this._ptc(679,1109) : this._ptc(1210,676);
     let img, cx, cy, alpha=1.0, paintH=H_FAR, flipX=false;
     if (elapsed < EMERGE) {
       const p=eio(elapsed/EMERGE);
-      if (rb.dir===-1) { cx=lEmerge.x+(lEntry.x-lEmerge.x)*p; cy=lEmerge.y+(lEntry.y-lEmerge.y)*p; img=scRobotImgs.side; flipX=false; alpha=occA(450+(474-450)*p,OCC_EL1,OCC_EL2,OCC_EF); }
-      else             { cx=rEmerge.x+(rEntry.x-rEmerge.x)*p; cy=rEmerge.y+(rEntry.y-rEmerge.y)*p; img=scRobotImgs.side; flipX=true;  alpha=occA(1210+(1200-1210)*p,OCC_ER1,OCC_ER2,OCC_EF); }
+      if (rb.dir===-1) { cx=lEmerge.x+(lEntry.x-lEmerge.x)*p; cy=lEmerge.y+(lEntry.y-lEmerge.y)*p; img=scRobotImgs.side; flipX=false; alpha=occA(lEmgPx+(lEntPx-lEmgPx)*p,OCC_EL1,OCC_EL2,OCC_EF); }
+      else             { cx=rEmerge.x+(rEntry.x-rEmerge.x)*p; cy=rEmerge.y+(rEntry.y-rEmerge.y)*p; img=scRobotImgs.side; flipX=true;  alpha=occA(rEmgPx+(rEntPx-rEmgPx)*p,OCC_ER1,OCC_ER2,OCC_EF); }
     } else if (elapsed < EMERGE+WALK) {
       const p=eio((elapsed-EMERGE)/WALK);
-      if (rb.dir===-1) { cx=lEntry.x+(center.x-lEntry.x)*p; cy=lEntry.y+(center.y-lEntry.y)*p; img=scRobotImgs.side; flipX=false; const px2=474+(840-474)*p; alpha=Math.min(occA(px2,OCC_EL1,OCC_EL2,OCC_EF),occA(px2,OCC_L1,OCC_L2)); }
-      else             { cx=rEntry.x+(center.x-rEntry.x)*p; cy=rEntry.y+(center.y-rEntry.y)*p; img=scRobotImgs.side; flipX=true;  const px2=1200+(840-1200)*p; alpha=Math.min(occA(px2,OCC_ER1,OCC_ER2,OCC_EF),occA(px2,OCC_R1,OCC_R2)); }
+      if (rb.dir===-1) { cx=lEntry.x+(center.x-lEntry.x)*p; cy=lEntry.y+(center.y-lEntry.y)*p; img=scRobotImgs.side; flipX=false; const px2=lEntPx+(cenPx-lEntPx)*p; alpha=Math.min(occA(px2,OCC_EL1,OCC_EL2,OCC_EF),occA(px2,OCC_L1,OCC_L2)); }
+      else             { cx=rEntry.x+(center.x-rEntry.x)*p; cy=rEntry.y+(center.y-rEntry.y)*p; img=scRobotImgs.side; flipX=true;  const px2=rEntPx+(cenPx-rEntPx)*p; alpha=Math.min(occA(px2,OCC_ER1,OCC_ER2,OCC_EF),occA(px2,OCC_R1,OCC_R2)); }
     } else if (elapsed < EMERGE+WALK+TURN) {
       cx=center.x; cy=center.y; img=rb.dir===-1?scRobotImgs.turnLeft:scRobotImgs.turnRight; flipX=false; alpha=1.0;
     } else {
@@ -983,4 +1023,4 @@ class SpaceChurchOverlay {
   }
 }
 
-export { SpaceChurchOverlay, preloadSpaceChurchSprites };
+export { SpaceChurchOverlay, preloadSpaceChurchSprites, EV_NAMES_SPACE_CHURCH };

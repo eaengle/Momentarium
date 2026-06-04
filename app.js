@@ -3,7 +3,7 @@ import { SnowOverlay, SmokeOverlay, CabinEventsOverlay, AuroraShimmerOverlay, Wi
 import { BirdsOverlay, WaterGlintsOverlay, SeaMistOverlay } from './scenes/beach/scene.js';
 import { BubblesOverlay, LightRaysOverlay, FishSilhouettesOverlay } from './scenes/aquarium/scene.js';
 import { TechRuinOverlay, preloadTechRuinSprites, EV_NAMES_TECH_RUIN } from './scenes/tech-ruin/scene.js';
-import { SpaceChurchOverlay, preloadSpaceChurchSprites } from './scenes/space-church/scene.js';
+import { SpaceChurchOverlay, preloadSpaceChurchSprites, EV_NAMES_SPACE_CHURCH } from './scenes/space-church/scene.js';
 
 const _ric = window.requestIdleCallback || (cb => setTimeout(cb, 50));
 
@@ -281,6 +281,7 @@ class MomentariumApp {
       let evOverlay = null, evNames = null;
       if (sceneOverlays.cabinEvents) { evOverlay = sceneOverlays.cabinEvents; evNames = EV_NAMES_CABIN; }
       else if (sceneOverlays.techRuin) { evOverlay = sceneOverlays.techRuin; evNames = EV_NAMES_TECH_RUIN; }
+      else if (sceneOverlays.spaceChurch) { evOverlay = sceneOverlays.spaceChurch; evNames = EV_NAMES_SPACE_CHURCH; }
       if (!evOverlay) return;
       if (e.key === '[') {
         e.preventDefault();
