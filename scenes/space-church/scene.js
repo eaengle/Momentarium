@@ -34,7 +34,7 @@ const SC_ANCHORS_P = {
 const EV_NAMES_SPACE_CHURCH = [
   'hologram_glitch', 'floor_convergence', 'arch_arc', 'portal_surge',
   'plasma_eruption', 'cathedral_dimming', 'rune_flash', 'robot_procession',
-  'float_robot', 'pulsar_ripple',
+  'float_robot', 'pulsar_ripple', 'god_beams',
 ];
 
 const scHoloImgs   = { sword: [], soldier: [], angel: [], abstract: [], priest: [], alien: [] };
@@ -82,6 +82,7 @@ class SpaceChurchOverlay {
     this._robot       = { active: false, startAt: -1, dir: 0 };
     this._floatRobot  = { active: false, startAt: -1, dir: 0 };
     this._pulsarRipple = { active: false, startAt: -1 };
+    this._goBeams = { active: false, startAt: -1 };
     this._initEventTimers();
   }
 
@@ -98,6 +99,7 @@ class SpaceChurchOverlay {
       robot_procession:  this._def(45, 100),
       float_robot:       this._def(50, 110),
       pulsar_ripple:     this._def(28, 60),
+      god_beams:         this._def(55, 120),
     };
   }
 
@@ -260,6 +262,7 @@ class SpaceChurchOverlay {
       case 'robot_procession':  if (!this._robot.active)      this._robot      = { active: true, startAt: -1, dir: Math.random() < 0.5 ? -1 : 1 }; break;
       case 'float_robot':       if (!this._floatRobot.active) this._floatRobot = { active: true, startAt: -1, dir: Math.random() < 0.5 ? -1 : 1 }; break;
       case 'pulsar_ripple':     if (!this._pulsarRipple.active) this._pulsarRipple = { active: true, startAt: -1 }; break;
+      case 'god_beams':         this._triggerGoBeams(); break;
     }
   }
 
@@ -276,7 +279,7 @@ class SpaceChurchOverlay {
       this._tickCatDim(now);
       this._drawCathedralDimming(ctx, W, H);
       this._drawBackWindowStars(ctx, W, H, now);
-      this._drawGodRays(ctx, W, H, now);
+      this._drawGoBeams(ctx, W, H, now);
       this._drawPlasmaBall(ctx, W, H, now);
       this._drawPlasmaEruption(ctx, W, H, now);
       this._drawPortalSurge(ctx, W, H, now);
@@ -296,7 +299,7 @@ class SpaceChurchOverlay {
     this._tickCatDim(now);
     this._drawCathedralDimming(ctx, W, H);
     this._drawBackWindowStars(ctx, W, H, now);
-    this._drawGodRays(ctx, W, H, now);
+    this._drawGoBeams(ctx, W, H, now);
     this._drawPlasmaBall(ctx, W, H, now);
     this._drawPlasmaEruption(ctx, W, H, now);
     this._drawPortalSurge(ctx, W, H, now);
@@ -416,9 +419,31 @@ class SpaceChurchOverlay {
     ctx.restore();
   }
 
-  // ── God rays ───────────────────────────────────────────────────────────────────
-  _drawGodRays(ctx, W, H, now) {
-    if (!this._ready() || !this._anc('plasmaCenter')) return;
+  // ── Go beams event (CE3K: scatter → lock-in → all-lit → fade) ─────────────────
+  _triggerGoBeams() {
+    if (this._goBeams.active) return;
+    const N = 6;
+    this._goBeams = {
+      active:     true,
+      startAt:    -1,
+      randAngles: Array.from({length: N}, () => Math.random() * TAU),
+      driftRates: Array.from({length: N}, () => (Math.random() - 0.5) * 0.00055),
+      lockOrder:  [...Array(N).keys()].sort(() => Math.random() - 0.5),
+    };
+  }
+
+  _drawGoBeams(ctx, W, H, now) {
+    const gb = this._goBeams;
+    if (!gb.active || !this._ready() || !this._anc('plasmaCenter')) return;
+    if (gb.startAt < 0) gb.startAt = now;
+    const elapsed = now - gb.startAt;
+
+    const SCATTER = 4000, LOCK_PHASE = 3000, ALL_LIT = 2500, FADE = 1500;
+    const N = 6, LOCK_INTERVAL = LOCK_PHASE / N;
+    const SNAP_MS = 380;
+    const TOT = SCATTER + LOCK_PHASE + ALL_LIT + FADE;
+    if (elapsed >= TOT) { gb.active = false; return; }
+
     const BEAMS = [
       { tl: 'pillar1TopLeft', tr: 'pillar1TopRight', phase: 0.0  },
       { tl: 'pillar2TopLeft', tr: 'pillar2TopRight', phase: 1.6  },
@@ -427,24 +452,141 @@ class SpaceChurchOverlay {
       { tl: 'pillar5TopLeft', tr: 'pillar5TopRight', phase: 2.25 },
       { tl: 'pillar6TopLeft', tr: 'pillar6TopRight', phase: 0.9  },
     ];
+    const sm  = p => p * p * (3 - 2 * p);
     const src = this._ptc(...this._anc('plasmaCenter'));
-    ctx.save(); ctx.globalCompositeOperation = 'screen';
-    for (const bm of BEAMS) {
+    const s   = this._s();
+
+    // Build target data; portrait pillars have TL==TR so synthesize a perpendicular spread
+    const targets = BEAMS.map(bm => {
       const tl = this._anc(bm.tl), tr = this._anc(bm.tr);
-      if (!tl || !tr) continue;
+      if (!tl || !tr) return null;
       const stl = this._ptc(...tl), str = this._ptc(...tr);
-      const pcx = (stl.x + str.x) / 2, pcy = (stl.y + str.y) / 2;
-      const pulse = 0.56 + 0.26 * Math.sin(now * 0.00025 + bm.phase)
-                       + 0.12 * Math.sin(now * 0.00082 + bm.phase * 1.7)
-                       + 0.06 * Math.sin(now * 0.00200 + bm.phase * 2.3);
-      const grad = ctx.createLinearGradient(src.x, src.y, pcx, pcy);
-      const a0 = 0.20 * pulse, a1 = 0.40 * pulse;
-      grad.addColorStop(0,   `rgba(200,180,255,${a0.toFixed(3)})`);
-      grad.addColorStop(0.7, `rgba(180,140,255,${a1.toFixed(3)})`);
-      grad.addColorStop(1,   `rgba(210,190,255,${(a1 * 0.5).toFixed(3)})`);
-      ctx.fillStyle = grad;
-      ctx.beginPath(); ctx.moveTo(src.x, src.y); ctx.lineTo(str.x, str.y); ctx.lineTo(stl.x, stl.y); ctx.closePath(); ctx.fill();
+      const cx = (stl.x + str.x) / 2, cy = (stl.y + str.y) / 2;
+      let lx = stl.x, ly = stl.y, rx = str.x, ry = str.y;
+      if (Math.hypot(rx - lx, ry - ly) < 2) {
+        // Portrait single-point anchor: spread perpendicular to beam direction
+        const dx = cx - src.x, dy = cy - src.y, len = Math.hypot(dx, dy) || 1;
+        const perx = -dy / len, pery = dx / len;
+        const hw = s * 22;
+        lx = cx - perx * hw; ly = cy - pery * hw;
+        rx = cx + perx * hw; ry = cy + pery * hw;
+      }
+      return { lx, ly, rx, ry, cx, cy };
+    });
+    const targetAngles = targets.map(t => t ? Math.atan2(t.cy - src.y, t.cx - src.x) : 0);
+
+    let globalAlpha = 1.0;
+    if (elapsed < 700) {
+      globalAlpha = sm(elapsed / 700);
+    } else if (elapsed >= SCATTER + LOCK_PHASE + ALL_LIT) {
+      globalAlpha = 1.0 - sm((elapsed - SCATTER - LOCK_PHASE - ALL_LIT) / FADE);
     }
+    if (globalAlpha < 0.01) return;
+
+    ctx.save(); ctx.globalCompositeOperation = 'screen';
+
+    for (let i = 0; i < N; i++) {
+      const tgt = targets[i];
+      if (!tgt) continue;
+      const bm        = BEAMS[i];
+      const lockStart = SCATTER + gb.lockOrder.indexOf(i) * LOCK_INTERVAL;
+      const lockEnd   = lockStart + SNAP_MS;
+
+      if (elapsed < lockStart) {
+        // ── Scatter: staccato flickering beam at random angle
+        const scAngle = gb.randAngles[i] + gb.driftRates[i] * elapsed;
+        const ramp    = sm(Math.min(1, elapsed / 800));
+        const f1      = Math.sin(now * 0.0052 * (1 + i * 0.18) + i * 2.1);
+        const f2      = Math.sin(now * 0.0019 + i * 0.71);
+        const flicker = Math.pow(Math.max(0, f1 * f2), 1.4);
+        const beamA   = globalAlpha * ramp * 0.70 * flicker;
+        if (beamA < 0.02) continue;
+
+        const bLen = Math.max(W, H) * 1.3;
+        const hw   = 0.065;
+        const ex   = src.x + Math.cos(scAngle) * bLen;
+        const ey   = src.y + Math.sin(scAngle) * bLen;
+        const px   = Math.cos(scAngle + Math.PI / 2) * hw * bLen;
+        const py   = Math.sin(scAngle + Math.PI / 2) * hw * bLen;
+        const grad = ctx.createLinearGradient(src.x, src.y, ex, ey);
+        grad.addColorStop(0,    `rgba(220,195,255,${(beamA * 0.50).toFixed(3)})`);
+        grad.addColorStop(0.35, `rgba(185,145,255,${(beamA * 0.75).toFixed(3)})`);
+        grad.addColorStop(1,    `rgba(210,190,255,0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.moveTo(src.x, src.y);
+        ctx.lineTo(ex + px, ey + py); ctx.lineTo(ex - px, ey - py);
+        ctx.closePath(); ctx.fill();
+
+      } else if (elapsed < lockEnd) {
+        // ── Snapping to pillar
+        const snapP   = sm((elapsed - lockStart) / SNAP_MS);
+        const scAngle = gb.randAngles[i] + gb.driftRates[i] * lockStart;
+        let diff = targetAngles[i] - scAngle;
+        while (diff > Math.PI)  diff -= TAU;
+        while (diff < -Math.PI) diff += TAU;
+        const curAngle = scAngle + diff * snapP;
+        const beamA    = globalAlpha * (0.65 + snapP * 0.35);
+
+        if (snapP < 0.55) {
+          const bLen = Math.max(W, H) * 1.3;
+          const hw   = 0.065 + snapP * 0.08;
+          const ex   = src.x + Math.cos(curAngle) * bLen;
+          const ey   = src.y + Math.sin(curAngle) * bLen;
+          const px   = Math.cos(curAngle + Math.PI / 2) * hw * bLen;
+          const py   = Math.sin(curAngle + Math.PI / 2) * hw * bLen;
+          const grad = ctx.createLinearGradient(src.x, src.y, ex, ey);
+          grad.addColorStop(0,    `rgba(220,195,255,${(beamA * 0.35).toFixed(3)})`);
+          grad.addColorStop(0.45, `rgba(185,145,255,${(beamA * 0.65).toFixed(3)})`);
+          grad.addColorStop(1,    `rgba(210,190,255,0)`);
+          ctx.fillStyle = grad;
+          ctx.beginPath(); ctx.moveTo(src.x, src.y);
+          ctx.lineTo(ex + px, ey + py); ctx.lineTo(ex - px, ey - py);
+          ctx.closePath(); ctx.fill();
+        } else {
+          const { lx, ly, rx, ry } = tgt;
+          const a0 = 0.25 * beamA, a1 = 0.55 * beamA;
+          const grad = ctx.createLinearGradient(src.x, src.y, tgt.cx, tgt.cy);
+          grad.addColorStop(0,   `rgba(200,180,255,${a0.toFixed(3)})`);
+          grad.addColorStop(0.7, `rgba(180,140,255,${a1.toFixed(3)})`);
+          grad.addColorStop(1,   `rgba(210,190,255,${(a1 * 0.5).toFixed(3)})`);
+          ctx.fillStyle = grad;
+          ctx.beginPath(); ctx.moveTo(src.x, src.y);
+          ctx.lineTo(rx, ry); ctx.lineTo(lx, ly);
+          ctx.closePath(); ctx.fill();
+        }
+
+        // Flash at pillar top when locking in
+        const flashP   = sm(Math.min(1, snapP * 2.5));
+        const { cx, cy } = tgt;
+        const br = s * (10 + (1 - flashP) * 22);
+        const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, br);
+        gr.addColorStop(0,    `rgba(255,248,255,${(flashP * globalAlpha * 0.92).toFixed(3)})`);
+        gr.addColorStop(0.45, `rgba(200,160,255,${(flashP * globalAlpha * 0.48).toFixed(3)})`);
+        gr.addColorStop(1,    'rgba(150,100,255,0)');
+        ctx.fillStyle = gr;
+        ctx.beginPath(); ctx.arc(cx, cy, br, 0, TAU); ctx.fill();
+
+      } else {
+        // ── Fully locked: pillar beam, boosted during all-lit phase
+        const { lx, ly, rx, ry } = tgt;
+        const allLitStart = SCATTER + LOCK_PHASE;
+        const bright = elapsed >= allLitStart ? 1.40 : 1.0;
+        const pulse  = 0.56 + 0.26 * Math.sin(now * 0.00025 + bm.phase)
+                           + 0.12 * Math.sin(now * 0.00082 + bm.phase * 1.7)
+                           + 0.06 * Math.sin(now * 0.00200 + bm.phase * 2.3);
+        const beamA  = globalAlpha * pulse;
+        const a0 = 0.25 * beamA * bright, a1 = 0.55 * beamA * bright;
+        const grad = ctx.createLinearGradient(src.x, src.y, tgt.cx, tgt.cy);
+        grad.addColorStop(0,   `rgba(200,180,255,${a0.toFixed(3)})`);
+        grad.addColorStop(0.7, `rgba(180,140,255,${a1.toFixed(3)})`);
+        grad.addColorStop(1,   `rgba(210,190,255,${(a1 * 0.5).toFixed(3)})`);
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.moveTo(src.x, src.y);
+        ctx.lineTo(rx, ry); ctx.lineTo(lx, ly);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+
     ctx.restore();
   }
 
