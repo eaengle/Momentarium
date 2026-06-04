@@ -78,7 +78,7 @@
   <canvas id="c"></canvas>
   <button id="motion-btn" hidden>enable shake</button>
   <p id="hint">swipe to explore &middot; shake to stir</p>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
   <script>
     if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
       window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));

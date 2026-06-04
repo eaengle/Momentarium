@@ -1,8 +1,14 @@
-const CACHE  = 'momentarium-v3';
+const CACHE  = 'momentarium-v4';
 const ASSETS = [
   './',
   './index.html',
   './app.js',
+  './core.js',
+  './scenes/tiny-cabin/scene.js',
+  './scenes/beach/scene.js',
+  './scenes/aquarium/scene.js',
+  './scenes/tech-ruin/scene.js',
+  './scenes/space-church/scene.js',
   './manifest.json',
   './icon.svg',
   './assets/scenes/tiny-cabin/background-placeholder.svg',
